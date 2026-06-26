@@ -15,10 +15,7 @@
       padding: 40px 20px;
     }
 
-    .container {
-      max-width: 860px;
-      margin: 0 auto;
-    }
+    .container { max-width: 920px; margin: 0 auto; }
 
     h1 {
       font-size: 1.6rem;
@@ -30,17 +27,47 @@
     .subtitle {
       color: #64748b;
       font-size: 0.875rem;
-      margin-bottom: 32px;
+      margin-bottom: 24px;
+      line-height: 1.5;
     }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      transition: all 0.15s;
+    }
+
+    .tab.active {
+      background: #312e81;
+      border-color: #6366f1;
+      color: #e0e7ff;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
 
     .input-row {
       display: flex;
       gap: 10px;
-      margin-bottom: 32px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
     }
 
-    input[type="text"] {
+    input[type="text"], select {
       flex: 1;
+      min-width: 220px;
       background: #1e2130;
       border: 1px solid #2d3148;
       border-radius: 8px;
@@ -52,7 +79,7 @@
     }
 
     input[type="text"]::placeholder { color: #4a5568; }
-    input[type="text"]:focus { border-color: #6366f1; }
+    input[type="text"]:focus, select:focus { border-color: #6366f1; }
 
     button {
       background: #6366f1;
@@ -69,6 +96,13 @@
 
     button:hover { background: #4f46e5; }
     button:disabled { background: #3730a3; cursor: not-allowed; opacity: 0.6; }
+
+    .hint {
+      color: #64748b;
+      font-size: 0.78rem;
+      margin-bottom: 24px;
+      line-height: 1.45;
+    }
 
     .status {
       color: #94a3b8;
@@ -98,7 +132,7 @@
       font-size: 1.15rem;
       font-weight: 700;
       color: #f1f5f9;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
 
     .event-meta {
@@ -120,6 +154,11 @@
       letter-spacing: 0.05em;
     }
 
+    .badge.closed { background: #3b1f00; color: #fb923c; }
+    .badge.type-totals { background: #1a2e1a; color: #4ade80; }
+    .badge.type-spreads { background: #2e1a2e; color: #e879f9; }
+    .badge.type-btts { background: #2e2a1a; color: #fbbf24; }
+
     .markets-label {
       color: #94a3b8;
       font-size: 0.8rem;
@@ -140,17 +179,21 @@
 
     .market-card:hover { border-color: #4f46e5; }
 
+    .market-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
     .market-question {
       font-size: 0.925rem;
       font-weight: 600;
       color: #e2e8f0;
-      margin-bottom: 10px;
     }
 
-    .market-fields {
-      display: grid;
-      gap: 6px;
-    }
+    .market-fields { display: grid; gap: 6px; }
 
     .field {
       display: flex;
@@ -179,7 +222,7 @@
       padding: 2px 8px;
     }
 
-    .copy-btn {
+    .copy-btn, .copy-all-btn, .link-btn {
       background: transparent;
       border: 1px solid #2d3148;
       border-radius: 4px;
@@ -187,13 +230,22 @@
       cursor: pointer;
       font-size: 0.7rem;
       padding: 2px 8px;
-      margin-left: 6px;
       transition: all 0.15s;
+      text-decoration: none;
+      display: inline-block;
     }
 
-    .copy-btn:hover {
+    .copy-btn:hover, .copy-all-btn:hover, .link-btn:hover {
       background: #2d3148;
       color: #e2e8f0;
+    }
+
+    .copy-all-btn {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      margin-bottom: 16px;
+      border-radius: 8px;
     }
 
     .outcomes-row {
@@ -222,61 +274,188 @@
       padding: 3px 12px;
     }
 
-    .copy-all-btn {
-      background: #1e2130;
-      border: 1px solid #2d3148;
+    .events-list { display: grid; gap: 8px; }
+
+    .event-row {
+      background: #161824;
+      border: 1px solid #252840;
       border-radius: 8px;
-      color: #94a3b8;
+      padding: 12px 16px;
       cursor: pointer;
-      font-size: 0.8rem;
-      font-weight: 600;
-      padding: 8px 18px;
-      margin-bottom: 16px;
-      transition: all 0.2s;
+      transition: border-color 0.15s;
     }
 
-    .copy-all-btn:hover {
-      background: #2d3148;
+    .event-row:hover { border-color: #6366f1; }
+
+    .event-row-title {
+      font-size: 0.9rem;
+      font-weight: 600;
       color: #e2e8f0;
+      margin-bottom: 4px;
     }
+
+    .event-row-meta {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .pager {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .pager span { color: #64748b; font-size: 0.8rem; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Polymarket Event Explorer</h1>
-    <p class="subtitle">Paste any Polymarket event URL to fetch all markets and condition IDs</p>
+    <p class="subtitle">
+      Fetch condition IDs for sports events — moneyline, totals, spreads, and BTTS.
+      Use a <code>/market/...</code> URL for one market, or a sports/event URL to load all related markets.
+    </p>
 
-    <div class="input-row">
-      <input
-        type="text"
-        id="urlInput"
-        placeholder="https://polymarket.com/sports/world-cup/fifwc-ury-esp-2026-06-26"
-        value=""
-      />
-      <button id="fetchBtn" onclick="fetchEvent()">Fetch Events</button>
+    <div class="tabs">
+      <button class="tab active" data-tab="lookup">Event lookup</button>
+      <button class="tab" data-tab="browse">Browse World Cup</button>
+    </div>
+
+    <div id="panel-lookup" class="panel active">
+      <div class="input-row">
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="https://polymarket.com/sports/world-cup/fifwc-nor-fra-2026-06-26"
+        />
+        <button id="fetchBtn" onclick="fetchFromInput()">Fetch markets</button>
+      </div>
+      <p class="hint">
+        Also accepts <code>/market/fifwc-...-total-5pt5</code> URLs, raw slugs, or condition IDs (<code>0x...</code>).
+        Gamma only returns moneyline on <code>/events</code> — this tool also probes totals, spreads &amp; BTTS slugs.
+      </p>
+    </div>
+
+    <div id="panel-browse" class="panel">
+      <div class="input-row">
+        <select id="seriesSelect">
+          <option value="soccer-fifwc">FIFA World Cup matches (soccer-fifwc)</option>
+        </select>
+        <button id="browseBtn" onclick="browseEvents(0)">Load events</button>
+      </div>
+      <div class="input-row">
+        <button class="copy-all-btn" style="margin:0" onclick="browseEvents(browseOffset - 100)" id="prevBtn" disabled>← Prev</button>
+        <button class="copy-all-btn" style="margin:0" onclick="browseEvents(browseOffset + 100)" id="nextBtn" disabled>Next →</button>
+        <span class="pager" id="browsePager"></span>
+      </div>
+      <div id="browseOutput"></div>
     </div>
 
     <div id="output"></div>
   </div>
 
   <script>
+    const GAMMA = 'https://gamma-api.polymarket.com';
     const input = document.getElementById('urlInput');
     const output = document.getElementById('output');
     const fetchBtn = document.getElementById('fetchBtn');
+    let browseOffset = 0;
 
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') fetchEvent(); });
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+      });
+    });
 
-    function extractSlug(url) {
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') fetchFromInput(); });
+
+    function parseInput(raw) {
+      const trimmed = raw.trim();
+      if (!trimmed) return { kind: 'empty' };
+      if (/^0x[a-fA-F0-9]{64}$/.test(trimmed)) return { kind: 'condition', value: trimmed };
       try {
-        const u = new URL(url.trim());
+        const u = new URL(trimmed);
         const parts = u.pathname.split('/').filter(Boolean);
-        return parts[parts.length - 1] || null;
+        if (parts[0] === 'market' && parts[1]) return { kind: 'market', slug: parts[1] };
+        if (parts.length > 0) return { kind: 'event', slug: parts[parts.length - 1] };
       } catch {
-        // treat raw slug
-        const trimmed = url.trim().replace(/^\/|\/$/g, '');
-        if (trimmed && !trimmed.includes(' ')) return trimmed.split('/').pop();
-        return null;
+        const slug = trimmed.replace(/^\/|\/$/g, '').split('/').pop();
+        if (slug && !slug.includes(' ')) return { kind: 'event', slug };
       }
+      return { kind: 'invalid' };
+    }
+
+    function relatedMarketSlugs(eventSlug) {
+      const slugs = new Set([
+        `${eventSlug}-nor`,
+        `${eventSlug}-fra`,
+        `${eventSlug}-draw`,
+        `${eventSlug}-btts`,
+      ]);
+      for (let n = 0; n <= 8; n += 1) {
+        const line = `${n}pt5`;
+        slugs.add(`${eventSlug}-total-${line}`);
+      }
+      for (const side of ['home', 'away']) {
+        for (let n = 1; n <= 5; n += 1) {
+          slugs.add(`${eventSlug}-spread-${side}-${n}pt5`);
+        }
+      }
+      return [...slugs];
+    }
+
+    async function gammaGet(path) {
+      const res = await fetch(`${GAMMA}${path}`);
+      if (!res.ok) throw new Error(`Gamma API ${res.status}`);
+      return res.json();
+    }
+
+    async function fetchMarketBySlug(slug) {
+      let markets = await gammaGet(`/markets?slug=${encodeURIComponent(slug)}&limit=1`);
+      if (markets?.length) return markets[0];
+      markets = await gammaGet(`/markets?slug=${encodeURIComponent(slug)}&closed=true&limit=1`);
+      return markets?.[0] ?? null;
+    }
+
+    async function fetchMarketByConditionId(conditionId) {
+      for (const closed of ['false', 'true']) {
+        const markets = await gammaGet(
+          `/markets?condition_ids=${encodeURIComponent(conditionId)}&closed=${closed}&limit=5`,
+        );
+        const hit = markets?.find(m => m.conditionId?.toLowerCase() === conditionId.toLowerCase());
+        if (hit) return hit;
+      }
+      return null;
+    }
+
+    async function fetchAllMarketsForEvent(eventSlug) {
+      const eventRes = await gammaGet(`/events?slug=${encodeURIComponent(eventSlug)}&limit=1`);
+      const event = eventRes?.[0] ?? null;
+
+      const slugList = relatedMarketSlugs(eventSlug);
+      const fetched = await Promise.all(slugList.map(fetchMarketBySlug));
+      const byCondition = new Map();
+
+      for (const m of event?.markets ?? []) {
+        if (m?.conditionId) byCondition.set(m.conditionId.toLowerCase(), m);
+      }
+      for (const m of fetched) {
+        if (m?.conditionId) byCondition.set(m.conditionId.toLowerCase(), m);
+      }
+
+      const markets = [...byCondition.values()].sort((a, b) => {
+        const order = { moneyline: 0, totals: 1, spreads: 2, both_teams_to_score: 3 };
+        const ta = order[a.sportsMarketType] ?? 99;
+        const tb = order[b.sportsMarketType] ?? 99;
+        if (ta !== tb) return ta - tb;
+        return String(a.groupItemTitle || a.question).localeCompare(String(b.groupItemTitle || b.question));
+      });
+
+      return { event, markets, eventSlug };
     }
 
     function copyText(text, btn) {
@@ -285,39 +464,6 @@
         btn.textContent = 'Copied!';
         setTimeout(() => (btn.textContent = orig), 1500);
       });
-    }
-
-    async function fetchEvent() {
-      const rawUrl = input.value.trim();
-      if (!rawUrl) return;
-
-      const slug = extractSlug(rawUrl);
-      if (!slug) {
-        output.innerHTML = `<div class="error">Could not extract a slug from that URL. Make sure it looks like https://polymarket.com/.../event-slug</div>`;
-        return;
-      }
-
-      output.innerHTML = `<div class="status">Fetching event "<b>${slug}</b>"…</div>`;
-      fetchBtn.disabled = true;
-
-      try {
-        // First try the gamma events API by slug
-        const eventRes = await fetch(`https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(slug)}&limit=1`);
-        if (!eventRes.ok) throw new Error(`Gamma API responded ${eventRes.status}`);
-        const events = await eventRes.json();
-
-        if (!events || events.length === 0) {
-          output.innerHTML = `<div class="error">No event found for slug "<b>${slug}</b>". Double-check the URL or try a different one.</div>`;
-          return;
-        }
-
-        const event = events[0];
-        renderEvent(event, slug);
-      } catch (err) {
-        output.innerHTML = `<div class="error">${err.message}</div>`;
-      } finally {
-        fetchBtn.disabled = false;
-      }
     }
 
     function fmt(val) {
@@ -332,100 +478,90 @@
       return (n * 100).toFixed(1) + '%';
     }
 
-    function renderEvent(event, slug) {
-      const markets = event.markets || [];
+    function typeBadge(market) {
+      const t = market.sportsMarketType || 'other';
+      const labels = {
+        moneyline: 'Moneyline',
+        totals: 'Totals',
+        spreads: 'Spread',
+        both_teams_to_score: 'BTTS',
+      };
+      const cls = t === 'totals' ? 'type-totals' : t === 'spreads' ? 'type-spreads' : t === 'both_teams_to_score' ? 'type-btts' : '';
+      return `<span class="badge ${cls}">${labels[t] || t}</span>`;
+    }
 
-      // Collect all condition IDs for copy-all
+    function renderResult({ event, markets, eventSlug }) {
       const allConditionIds = markets.map(m => m.conditionId).filter(Boolean);
-
       let html = '';
 
-      // Event header
       html += `<div class="event-header">`;
-      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">`;
-      html += `<div class="event-title">${fmt(event.title)}</div>`;
-      if (event.active) html += `<span class="badge">Active</span>`;
-      if (event.closed) html += `<span class="badge" style="background:#3b1f00;color:#fb923c">Closed</span>`;
+      html += `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">`;
+      html += `<div class="event-title">${fmt(event?.title || eventSlug)}</div>`;
+      if (event?.active) html += `<span class="badge">Active</span>`;
+      if (event?.closed) html += `<span class="badge closed">Closed</span>`;
       html += `</div>`;
       html += `<div class="event-meta">`;
-      if (event.startDate) html += `<span>Start: ${new Date(event.startDate).toLocaleString()}</span>`;
-      if (event.endDate) html += `<span>End: ${new Date(event.endDate).toLocaleString()}</span>`;
-      html += `<span>Slug: <code style="color:#94a3b8">${slug}</code></span>`;
-      html += `<span>Markets: <b style="color:#e2e8f0">${markets.length}</b></span>`;
+      if (event?.startDate) html += `<span>Start: ${new Date(event.startDate).toLocaleString()}</span>`;
+      if (event?.endDate) html += `<span>End: ${new Date(event.endDate).toLocaleString()}</span>`;
+      html += `<span>Slug: <code>${eventSlug}</code></span>`;
+      html += `<span>Markets found: <b style="color:#e2e8f0">${markets.length}</b></span>`;
       html += `</div></div>`;
 
       if (markets.length === 0) {
-        html += `<div class="status">No markets found for this event.</div>`;
+        html += `<div class="error">No markets found. Try a <code>/market/...</code> URL or check the slug.</div>`;
         output.innerHTML = html;
         return;
       }
 
-      // Copy all condition IDs button
-      if (allConditionIds.length > 0) {
-        html += `<button class="copy-all-btn" id="copyAllBtn">Copy all condition IDs (${allConditionIds.length})</button>`;
-      }
-
-      html += `<div class="markets-label">${markets.length} Market${markets.length !== 1 ? 's' : ''}</div>`;
+      html += `<button class="copy-all-btn" id="copyAllBtn">Copy all condition IDs (${allConditionIds.length})</button>`;
+      html += `<div class="markets-label">${markets.length} markets</div>`;
 
       for (const m of markets) {
-        const outcomes = (() => {
-          try { return JSON.parse(m.outcomes || '[]'); } catch { return []; }
-        })();
-        const prices = (() => {
-          try { return JSON.parse(m.outcomePrices || '[]'); } catch { return []; }
-        })();
-        const tokenIds = (() => {
-          try { return JSON.parse(m.clobTokenIds || '[]'); } catch { return []; }
-        })();
+        const outcomes = (() => { try { return JSON.parse(m.outcomes || '[]'); } catch { return []; } })();
+        const prices = (() => { try { return JSON.parse(m.outcomePrices || '[]'); } catch { return []; } })();
+        const tokenIds = (() => { try { return JSON.parse(m.clobTokenIds || '[]'); } catch { return []; } })();
+        const marketUrl = m.slug ? `https://polymarket.com/market/${m.slug}` : null;
 
         html += `<div class="market-card">`;
+        html += `<div class="market-head">`;
         html += `<div class="market-question">${fmt(m.question)}</div>`;
+        html += `<div style="display:flex;gap:6px;flex-wrap:wrap;">${typeBadge(m)}`;
+        if (m.closed) html += `<span class="badge closed">Closed</span>`;
+        html += `</div></div>`;
         html += `<div class="market-fields">`;
+
+        if (m.slug) {
+          html += `<div class="field"><span class="field-label">Slug</span><span class="field-value">${m.slug}</span></div>`;
+        }
 
         if (m.conditionId) {
           html += `<div class="field">
             <span class="field-label">Condition ID</span>
-            <span class="field-value highlight" id="cid-${m.conditionId}">${m.conditionId}</span>
-            <button class="copy-btn" onclick="copyText('${m.conditionId}', this)">Copy</button>
+            <span class="field-value highlight">${m.conditionId}</span>
+            <button class="copy-btn" type="button" data-copy="${m.conditionId}">Copy</button>
+          </div>`;
+        }
+
+        if (marketUrl) {
+          html += `<div class="field">
+            <span class="field-label">Polymarket</span>
+            <a class="link-btn" href="${marketUrl}" target="_blank" rel="noopener">Open market ↗</a>
           </div>`;
         }
 
         if (m.id) {
-          html += `<div class="field">
-            <span class="field-label">Market ID</span>
-            <span class="field-value">${m.id}</span>
-          </div>`;
+          html += `<div class="field"><span class="field-label">Market ID</span><span class="field-value">${m.id}</span></div>`;
         }
 
         if (tokenIds.length > 0) {
-          html += `<div class="field">
-            <span class="field-label">CLOB Token IDs</span>
-            <span class="field-value">${tokenIds.join(', ')}</span>
-          </div>`;
-        }
-
-        if (m.volume != null) {
-          html += `<div class="field">
-            <span class="field-label">Volume</span>
-            <span class="field-value">$${Number(m.volume).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-          </div>`;
-        }
-
-        if (m.liquidity != null) {
-          html += `<div class="field">
-            <span class="field-label">Liquidity</span>
-            <span class="field-value">$${Number(m.liquidity).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-          </div>`;
+          html += `<div class="field"><span class="field-label">CLOB tokens</span><span class="field-value">${tokenIds.join(', ')}</span></div>`;
         }
 
         if (outcomes.length > 0) {
-          html += `<div class="field">
-            <span class="field-label">Outcomes</span>
-            <div>`;
-          html += `<div class="outcomes-row">`;
+          html += `<div class="field"><span class="field-label">Outcomes</span><div><div class="outcomes-row">`;
           for (let i = 0; i < outcomes.length; i++) {
-            const p = pct(prices[i]);
             html += `<span class="outcome-chip">${outcomes[i]}</span>`;
+            const p = pct(prices[i]);
             if (p) html += `<span class="price-chip">${p}</span>`;
           }
           html += `</div></div></div>`;
@@ -436,12 +572,93 @@
 
       output.innerHTML = html;
 
-      // Wire copy-all button
-      const copyAllBtn = document.getElementById('copyAllBtn');
-      if (copyAllBtn) {
-        copyAllBtn.addEventListener('click', () => {
-          copyText(allConditionIds.join('\n'), copyAllBtn);
+      document.getElementById('copyAllBtn')?.addEventListener('click', function () {
+        copyText(allConditionIds.join('\n'), this);
+      });
+      document.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.addEventListener('click', () => copyText(btn.dataset.copy, btn));
+      });
+    }
+
+    async function fetchFromInput() {
+      const parsed = parseInput(input.value);
+      if (parsed.kind === 'empty' || parsed.kind === 'invalid') {
+        output.innerHTML = `<div class="error">Paste a Polymarket URL, slug, or condition ID.</div>`;
+        return;
+      }
+
+      fetchBtn.disabled = true;
+      output.innerHTML = `<div class="status">Fetching…</div>`;
+
+      try {
+        if (parsed.kind === 'market') {
+          const m = await fetchMarketBySlug(parsed.slug);
+          if (!m) throw new Error(`No market found for slug "${parsed.slug}"`);
+          const base = parsed.slug.replace(/-(total|spread|btts|nor|fra|draw).*$/, '');
+          renderResult({ event: null, markets: [m], eventSlug: base || parsed.slug });
+          return;
+        }
+
+        if (parsed.kind === 'condition') {
+          const m = await fetchMarketByConditionId(parsed.value);
+          if (!m) throw new Error(`No market found for condition ID`);
+          renderResult({ event: null, markets: [m], eventSlug: m.slug || parsed.value });
+          return;
+        }
+
+        output.innerHTML = `<div class="status">Loading all markets for <b>${parsed.slug}</b>…</div>`;
+        const result = await fetchAllMarketsForEvent(parsed.slug);
+        renderResult(result);
+      } catch (err) {
+        output.innerHTML = `<div class="error">${err.message}</div>`;
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    async function browseEvents(offset) {
+      browseOffset = Math.max(0, offset);
+      const series = document.getElementById('seriesSelect').value;
+      const browseOutput = document.getElementById('browseOutput');
+      const browseBtn = document.getElementById('browseBtn');
+      browseBtn.disabled = true;
+      browseOutput.innerHTML = `<div class="status">Loading events…</div>`;
+
+      try {
+        const events = await gammaGet(
+          `/events?series_slug=${encodeURIComponent(series)}&limit=100&offset=${browseOffset}&active=true&closed=false`,
+        );
+        document.getElementById('prevBtn').disabled = browseOffset === 0;
+        document.getElementById('nextBtn').disabled = events.length < 100;
+        document.getElementById('browsePager').textContent =
+          events.length ? `Showing ${browseOffset + 1}–${browseOffset + events.length}` : 'No events';
+
+        if (!events.length) {
+          browseOutput.innerHTML = `<div class="status">No more events.</div>`;
+          return;
+        }
+
+        let html = `<div class="events-list">`;
+        for (const e of events) {
+          html += `<div class="event-row" data-slug="${e.slug}">
+            <div class="event-row-title">${fmt(e.title)}</div>
+            <div class="event-row-meta">${e.slug} · ${e.markets?.length ?? 0} moneyline markets on Gamma</div>
+          </div>`;
+        }
+        html += `</div>`;
+        browseOutput.innerHTML = html;
+
+        browseOutput.querySelectorAll('.event-row').forEach(row => {
+          row.addEventListener('click', () => {
+            document.querySelector('.tab[data-tab="lookup"]').click();
+            input.value = `https://polymarket.com/sports/world-cup/${row.dataset.slug}`;
+            fetchFromInput();
+          });
         });
+      } catch (err) {
+        browseOutput.innerHTML = `<div class="error">${err.message}</div>`;
+      } finally {
+        browseBtn.disabled = false;
       }
     }
   </script>
