@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Polymarket Event Explorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0d0f14;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 0.875rem;
+      margin-bottom: 32px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]::placeholder { color: #4a5568; }
+    input[type="text"]:focus { border-color: #6366f1; }
+
+    button {
+      background: #6366f1;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 12px 24px;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #4f46e5; }
+    button:disabled { background: #3730a3; cursor: not-allowed; opacity: 0.6; }
+
+    .status {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+    }
+
+    .error {
+      background: #1f1215;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      color: #fca5a5;
+      font-size: 0.875rem;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+
+    .event-header {
+      background: #1a1d2e;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+
+    .event-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+    }
+
+    .event-meta {
+      color: #64748b;
+      font-size: 0.8rem;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      background: #1e3a5f;
+      border-radius: 4px;
+      color: #60a5fa;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .markets-label {
+      color: #94a3b8;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .market-card {
+      background: #161824;
+      border: 1px solid #252840;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+
+    .market-card:hover { border-color: #4f46e5; }
+
+    .market-question {
+      font-size: 0.925rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 10px;
+    }
+
+    .market-fields {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.8rem;
+    }
+
+    .field-label {
+      color: #4a5568;
+      font-weight: 600;
+      min-width: 110px;
+      flex-shrink: 0;
+    }
+
+    .field-value {
+      color: #94a3b8;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      word-break: break-all;
+    }
+
+    .field-value.highlight {
+      color: #a5b4fc;
+      background: #1e2050;
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid #2d3148;
+      border-radius: 4px;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      margin-left: 6px;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: #2d3148;
+      color: #e2e8f0;
+    }
+
+    .outcomes-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .outcome-chip {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 20px;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      padding: 3px 12px;
+    }
+
+    .price-chip {
+      background: #12291a;
+      border: 1px solid #166534;
+      border-radius: 20px;
+      color: #4ade80;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 12px;
+    }
+
+    .copy-all-btn {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      margin-bottom: 16px;
+      transition: all 0.2s;
+    }
+
+    .copy-all-btn:hover {
+      background: #2d3148;
+      color: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Polymarket Event Explorer</h1>
+    <p class="subtitle">Paste any Polymarket event URL to fetch all markets and condition IDs</p>
+
+    <div class="input-row">
+      <input
+        type="text"
+        id="urlInput"
+        placeholder="https://polymarket.com/sports/world-cup/fifwc-ury-esp-2026-06-26"
+        value=""
+      />
+      <button id="fetchBtn" onclick="fetchEvent()">Fetch Events</button>
+    </div>
+
+    <div id="output"></div>
+  </div>
+
+  <script>
+    const input = document.getElementById('urlInput');
+    const output = document.getElementById('output');
+    const fetchBtn = document.getElementById('fetchBtn');
+
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') fetchEvent(); });
+
+    function extractSlug(url) {
+      try {
+        const u = new URL(url.trim());
+        const parts = u.pathname.split('/').filter(Boolean);
+        return parts[parts.length - 1] || null;
+      } catch {
+        // treat raw slug
+        const trimmed = url.trim().replace(/^\/|\/$/g, '');
+        if (trimmed && !trimmed.includes(' ')) return trimmed.split('/').pop();
+        return null;
+      }
+    }
+
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => (btn.textContent = orig), 1500);
+      });
+    }
+
+    async function fetchEvent() {
+      const rawUrl = input.value.trim();
+      if (!rawUrl) return;
+
+      const slug = extractSlug(rawUrl);
+      if (!slug) {
+        output.innerHTML = `<div class="error">Could not extract a slug from that URL. Make sure it looks like https://polymarket.com/.../event-slug</div>`;
+        return;
+      }
+
+      output.innerHTML = `<div class="status">Fetching event "<b>${slug}</b>"…</div>`;
+      fetchBtn.disabled = true;
+
+      try {
+        // First try the gamma events API by slug
+        const eventRes = await fetch(`https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(slug)}&limit=1`);
+        if (!eventRes.ok) throw new Error(`Gamma API responded ${eventRes.status}`);
+        const events = await eventRes.json();
+
+        if (!events || events.length === 0) {
+          output.innerHTML = `<div class="error">No event found for slug "<b>${slug}</b>". Double-check the URL or try a different one.</div>`;
+          return;
+        }
+
+        const event = events[0];
+        renderEvent(event, slug);
+      } catch (err) {
+        output.innerHTML = `<div class="error">${err.message}</div>`;
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    function fmt(val) {
+      if (val == null || val === '') return '—';
+      return val;
+    }
+
+    function pct(val) {
+      if (val == null || val === '') return null;
+      const n = parseFloat(val);
+      if (isNaN(n)) return null;
+      return (n * 100).toFixed(1) + '%';
+    }
+
+    function renderEvent(event, slug) {
+      const markets = event.markets || [];
+
+      // Collect all condition IDs for copy-all
+      const allConditionIds = markets.map(m => m.conditionId).filter(Boolean);
+
+      let html = '';
+
+      // Event header
+      html += `<div class="event-header">`;
+      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">`;
+      html += `<div class="event-title">${fmt(event.title)}</div>`;
+      if (event.active) html += `<span class="badge">Active</span>`;
+      if (event.closed) html += `<span class="badge" style="background:#3b1f00;color:#fb923c">Closed</span>`;
+      html += `</div>`;
+      html += `<div class="event-meta">`;
+      if (event.startDate) html += `<span>Start: ${new Date(event.startDate).toLocaleString()}</span>`;
+      if (event.endDate) html += `<span>End: ${new Date(event.endDate).toLocaleString()}</span>`;
+      html += `<span>Slug: <code style="color:#94a3b8">${slug}</code></span>`;
+      html += `<span>Markets: <b style="color:#e2e8f0">${markets.length}</b></span>`;
+      html += `</div></div>`;
+
+      if (markets.length === 0) {
+        html += `<div class="status">No markets found for this event.</div>`;
+        output.innerHTML = html;
+        return;
+      }
+
+      // Copy all condition IDs button
+      if (allConditionIds.length > 0) {
+        html += `<button class="copy-all-btn" id="copyAllBtn">Copy all condition IDs (${allConditionIds.length})</button>`;
+      }
+
+      html += `<div class="markets-label">${markets.length} Market${markets.length !== 1 ? 's' : ''}</div>`;
+
+      for (const m of markets) {
+        const outcomes = (() => {
+          try { return JSON.parse(m.outcomes || '[]'); } catch { return []; }
+        })();
+        const prices = (() => {
+          try { return JSON.parse(m.outcomePrices || '[]'); } catch { return []; }
+        })();
+        const tokenIds = (() => {
+          try { return JSON.parse(m.clobTokenIds || '[]'); } catch { return []; }
+        })();
+
+        html += `<div class="market-card">`;
+        html += `<div class="market-question">${fmt(m.question)}</div>`;
+        html += `<div class="market-fields">`;
+
+        if (m.conditionId) {
+          html += `<div class="field">
+            <span class="field-label">Condition ID</span>
+            <span class="field-value highlight" id="cid-${m.conditionId}">${m.conditionId}</span>
+            <button class="copy-btn" onclick="copyText('${m.conditionId}', this)">Copy</button>
+          </div>`;
+        }
+
+        if (m.id) {
+          html += `<div class="field">
+            <span class="field-label">Market ID</span>
+            <span class="field-value">${m.id}</span>
+          </div>`;
+        }
+
+        if (tokenIds.length > 0) {
+          html += `<div class="field">
+            <span class="field-label">CLOB Token IDs</span>
+            <span class="field-value">${tokenIds.join(', ')}</span>
+          </div>`;
+        }
+
+        if (m.volume != null) {
+          html += `<div class="field">
+            <span class="field-label">Volume</span>
+            <span class="field-value">$${Number(m.volume).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+          </div>`;
+        }
+
+        if (m.liquidity != null) {
+          html += `<div class="field">
+            <span class="field-label">Liquidity</span>
+            <span class="field-value">$${Number(m.liquidity).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+          </div>`;
+        }
+
+        if (outcomes.length > 0) {
+          html += `<div class="field">
+            <span class="field-label">Outcomes</span>
+            <div>`;
+          html += `<div class="outcomes-row">`;
+          for (let i = 0; i < outcomes.length; i++) {
+            const p = pct(prices[i]);
+            html += `<span class="outcome-chip">${outcomes[i]}</span>`;
+            if (p) html += `<span class="price-chip">${p}</span>`;
+          }
+          html += `</div></div></div>`;
+        }
+
+        html += `</div></div>`;
+      }
+
+      output.innerHTML = html;
+
+      // Wire copy-all button
+      const copyAllBtn = document.getElementById('copyAllBtn');
+      if (copyAllBtn) {
+        copyAllBtn.addEventListener('click', () => {
+          copyText(allConditionIds.join('\n'), copyAllBtn);
+        });
+      }
+    }
+  </script>
+</body>
+</html>
