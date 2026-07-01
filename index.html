@@ -313,7 +313,7 @@
   <div class="container">
     <h1>Polymarket Event Explorer</h1>
     <p class="subtitle">
-      Fetch condition IDs for sports events — moneyline, totals, spreads, and BTTS.
+      Fetch condition IDs for sports events — moneyline, totals, spreads, BTTS, player props, corners, and more.
       Use a <code>/market/...</code> URL for one market, or a sports/event URL to load all related markets.
     </p>
 
@@ -333,7 +333,7 @@
       </div>
       <p class="hint">
         Also accepts <code>/market/fifwc-...-total-5pt5</code> URLs, raw slugs, or condition IDs (<code>0x...</code>).
-        Gamma only returns moneyline on <code>/events</code> — this tool also probes totals, spreads &amp; BTTS slugs.
+        Gamma splits markets across sub-events — this tool also loads player props, first to score, corners, and more markets.
       </p>
     </div>
 
@@ -389,6 +389,27 @@
       return { kind: 'invalid' };
     }
 
+    const SUB_EVENT_SUFFIXES = [
+      '-player-props',
+      '-first-to-score',
+      '-total-corners',
+      '-more-markets',
+    ];
+
+    function baseEventSlug(slug) {
+      for (const suffix of SUB_EVENT_SUFFIXES) {
+        if (slug.endsWith(suffix)) return slug.slice(0, -suffix.length);
+      }
+      return slug;
+    }
+
+    function relatedEventSlugs(baseSlug) {
+      return [
+        baseSlug,
+        ...SUB_EVENT_SUFFIXES.map(suffix => `${baseSlug}${suffix}`),
+      ];
+    }
+
     function relatedMarketSlugs(eventSlug) {
       const slugs = new Set([
         `${eventSlug}-nor`,
@@ -432,30 +453,71 @@
       return null;
     }
 
-    async function fetchAllMarketsForEvent(eventSlug) {
-      const eventRes = await gammaGet(`/events?slug=${encodeURIComponent(eventSlug)}&limit=1`);
-      const event = eventRes?.[0] ?? null;
+    async function fetchEventBySlug(slug) {
+      try {
+        const event = await gammaGet(`/events/slug/${encodeURIComponent(slug)}`);
+        if (event?.slug) return event;
+      } catch {
+        /* fall through to list endpoint */
+      }
+      const events = await gammaGet(`/events?slug=${encodeURIComponent(slug)}&limit=1`);
+      return events?.[0] ?? null;
+    }
 
-      const slugList = relatedMarketSlugs(eventSlug);
-      const fetched = await Promise.all(slugList.map(fetchMarketBySlug));
+    async function fetchAllMarketsForEvent(eventSlug) {
+      const baseSlug = baseEventSlug(eventSlug);
+      const eventSlugs = relatedEventSlugs(baseSlug);
+
+      const [events, ...fetchedMarkets] = await Promise.all([
+        Promise.all(eventSlugs.map(fetchEventBySlug)),
+        ...relatedMarketSlugs(baseSlug).map(fetchMarketBySlug),
+      ]);
+
+      const event = events.find(e => e?.slug === baseSlug) ?? events.find(Boolean) ?? null;
       const byCondition = new Map();
 
-      for (const m of event?.markets ?? []) {
-        if (m?.conditionId) byCondition.set(m.conditionId.toLowerCase(), m);
+      for (const ev of events) {
+        for (const m of ev?.markets ?? []) {
+          if (m?.conditionId) byCondition.set(m.conditionId.toLowerCase(), m);
+        }
       }
-      for (const m of fetched) {
+      for (const m of fetchedMarkets) {
         if (m?.conditionId) byCondition.set(m.conditionId.toLowerCase(), m);
       }
 
       const markets = [...byCondition.values()].sort((a, b) => {
-        const order = { moneyline: 0, totals: 1, spreads: 2, both_teams_to_score: 3 };
+        const order = {
+          moneyline: 0,
+          soccer_first_to_score: 1,
+          totals: 2,
+          first_half_totals: 3,
+          second_half_totals: 4,
+          soccer_team_totals: 5,
+          soccer_first_half_team_totals: 6,
+          soccer_second_half_team_totals: 7,
+          spreads: 8,
+          both_teams_to_score: 9,
+          both_teams_to_score_first_half: 10,
+          both_teams_to_score_second_half: 11,
+          total_corners: 12,
+          soccer_team_total_corners: 13,
+          soccer_first_half_total_corners: 14,
+          soccer_second_half_total_corners: 15,
+          soccer_first_corner: 16,
+          soccer_game_corners_odd_even: 17,
+          soccer_player_goals: 20,
+          soccer_player_goalkeeper_saves: 21,
+          soccer_team_to_advance: 30,
+          soccer_penalty_shootout: 31,
+          soccer_extra_time: 32,
+        };
         const ta = order[a.sportsMarketType] ?? 99;
         const tb = order[b.sportsMarketType] ?? 99;
         if (ta !== tb) return ta - tb;
         return String(a.groupItemTitle || a.question).localeCompare(String(b.groupItemTitle || b.question));
       });
 
-      return { event, markets, eventSlug };
+      return { event, markets, eventSlug: baseSlug };
     }
 
     function copyText(text, btn) {
@@ -485,8 +547,32 @@
         totals: 'Totals',
         spreads: 'Spread',
         both_teams_to_score: 'BTTS',
+        both_teams_to_score_first_half: 'BTTS 1H',
+        both_teams_to_score_second_half: 'BTTS 2H',
+        soccer_first_to_score: 'First to score',
+        total_corners: 'Corners',
+        soccer_team_total_corners: 'Team corners',
+        soccer_first_half_total_corners: 'Corners 1H',
+        soccer_second_half_total_corners: 'Corners 2H',
+        soccer_first_corner: 'First corner',
+        soccer_game_corners_odd_even: 'Corners odd/even',
+        soccer_player_goals: 'Player goals',
+        soccer_player_goalkeeper_saves: 'GK saves',
+        first_half_totals: 'Totals 1H',
+        second_half_totals: 'Totals 2H',
+        soccer_team_totals: 'Team totals',
+        soccer_first_half_team_totals: 'Team totals 1H',
+        soccer_second_half_team_totals: 'Team totals 2H',
+        soccer_team_to_advance: 'To advance',
+        soccer_penalty_shootout: 'Penalties',
+        soccer_extra_time: 'Extra time',
       };
-      const cls = t === 'totals' ? 'type-totals' : t === 'spreads' ? 'type-spreads' : t === 'both_teams_to_score' ? 'type-btts' : '';
+      const cls = t === 'totals' || t.includes('total') ? 'type-totals'
+        : t === 'spreads' ? 'type-spreads'
+        : t.includes('both_teams_to_score') ? 'type-btts'
+        : t.includes('corner') ? 'type-totals'
+        : t.includes('player') ? 'type-spreads'
+        : '';
       return `<span class="badge ${cls}">${labels[t] || t}</span>`;
     }
 
@@ -606,7 +692,8 @@
           return;
         }
 
-        output.innerHTML = `<div class="status">Loading all markets for <b>${parsed.slug}</b>…</div>`;
+        const baseSlug = baseEventSlug(parsed.slug);
+        output.innerHTML = `<div class="status">Loading all markets for <b>${baseSlug}</b> (including player props, corners, and more)…</div>`;
         const result = await fetchAllMarketsForEvent(parsed.slug);
         renderResult(result);
       } catch (err) {
