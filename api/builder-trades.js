@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
     const all = req.query.all === '1' || req.query.all === 'true';
 
     const result = all
-      ? await fetchAllBuilderTrades({ market, maxPages: 5 })
+      ? await fetchAllBuilderTrades({ market, maxPages: 100 })
       : await fetchBuilderTrades({ market, cursor });
 
     res.setHeader('Cache-Control', 'no-store');

@@ -64,7 +64,7 @@ async function fetchBuilderTrades({ market, cursor, limit = 300 } = {}) {
   };
 }
 
-async function fetchAllBuilderTrades({ market, maxPages = 5 } = {}) {
+async function fetchAllBuilderTrades({ market, maxPages = 100 } = {}) {
   const all = [];
   let cursor;
   let pages = 0;
@@ -72,11 +72,11 @@ async function fetchAllBuilderTrades({ market, maxPages = 5 } = {}) {
   while (pages < maxPages) {
     const page = await fetchBuilderTrades({ market, cursor });
     all.push(...page.trades);
+    pages += 1;
     if (!page.nextCursor) {
-      return { trades: all, pages: pages + 1, hasMore: false, nextCursor: null };
+      return { trades: all, pages, hasMore: false, nextCursor: null };
     }
     cursor = page.nextCursor;
-    pages += 1;
   }
 
   return { trades: all, pages, hasMore: true, nextCursor: cursor };

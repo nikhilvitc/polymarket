@@ -723,7 +723,7 @@
       html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(summary.protocolFees)}</div><div class="stat-sub">feeUsdc on all trades</div></div>`;
       html += `</div>`;
 
-      html += `<p class="hint"><b>Pre-fee</b> = builder-attributed trade with <code>builderFee = 0</code> (before fee tier applied). <b>Fee charged</b> = <code>builderFee &gt; 0</code>. Both still count toward builder volume.</p>`;
+      html += `<p class="hint"><b>Pre-fee</b> = builder-attributed trade with <code>builderFee = 0</code> (before fee tier applied). <b>Fee charged</b> = <code>builderFee &gt; 0</code>. Both still count toward builder volume. Polymarket returns up to 300 trades per API page — this dashboard auto-fetches all pages. Only <b>matched/filled</b> trades appear (resting limit orders are not listed).</p>`;
 
       html += `<div class="filter-row">`;
       html += `<span class="status" style="margin:0">Show:</span>`;
@@ -814,7 +814,12 @@
         }
 
         renderBuilderDashboard(feesJson, tradesJson);
-        builderStatus.textContent = `Updated ${new Date().toLocaleTimeString()} · ${tradesJson.trades?.length ?? 0} trades`;
+        const n = tradesJson.trades?.length ?? 0;
+        const pages = tradesJson.pages ?? 1;
+        let status = `Updated ${new Date().toLocaleTimeString()} · ${n} matched trades`;
+        if (pages > 1) status += ` (${pages} API pages)`;
+        if (tradesJson.hasMore) status += ' · more available — refresh again or raise page limit';
+        builderStatus.textContent = status;
       } catch (err) {
         builderOutput.innerHTML = `<div class="error">${err.message}<br><br>Set <code>POLYMARKET_BUILDER_*</code> env vars on Vercel (see <code>.env.example</code>). Local: <code>vercel dev</code>.</div>`;
         builderStatus.textContent = 'Failed to load';
