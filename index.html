@@ -307,6 +307,92 @@
     }
 
     .pager span { color: #64748b; font-size: 0.8rem; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: #161824;
+      border: 1px solid #252840;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .stat-label {
+      color: #64748b;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      color: #f1f5f9;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .stat-sub {
+      color: #94a3b8;
+      font-size: 0.75rem;
+      margin-top: 4px;
+      word-break: break-all;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid #252840;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #252840;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #12141f;
+      color: #94a3b8;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+    }
+
+    td { color: #cbd5e1; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1a1d2e; }
+
+    .side-buy { color: #4ade80; font-weight: 600; }
+    .side-sell { color: #f87171; font-weight: 600; }
+
+    .mono {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.72rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .toolbar .status { margin: 0; }
   </style>
 </head>
 <body>
@@ -318,11 +404,20 @@
     </p>
 
     <div class="tabs">
-      <button class="tab active" data-tab="lookup">Event lookup</button>
+      <button class="tab active" data-tab="builder">Builder dashboard</button>
+      <button class="tab" data-tab="lookup">Event lookup</button>
       <button class="tab" data-tab="browse">Browse World Cup</button>
     </div>
 
-    <div id="panel-lookup" class="panel active">
+    <div id="panel-builder" class="panel active">
+      <div class="toolbar">
+        <button id="builderRefreshBtn" onclick="loadBuilderDashboard()">Refresh</button>
+        <span class="status" id="builderStatus">Loading builder data…</span>
+      </div>
+      <div id="builderOutput"></div>
+    </div>
+
+    <div id="panel-lookup" class="panel">
       <div class="input-row">
         <input
           type="text"
@@ -362,14 +457,136 @@
     const fetchBtn = document.getElementById('fetchBtn');
     let browseOffset = 0;
 
+    const builderOutput = document.getElementById('builderOutput');
+    const builderStatus = document.getElementById('builderStatus');
+    const builderRefreshBtn = document.getElementById('builderRefreshBtn');
+    let builderTrades = [];
+
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+        if (tab.dataset.tab === 'builder' && !builderTrades.length) loadBuilderDashboard();
       });
     });
+
+    function fmtUsd(n) {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return '—';
+      return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleString();
+    }
+
+    function shortHex(v, n = 10) {
+      if (!v) return '—';
+      if (v.length <= n * 2 + 2) return v;
+      return `${v.slice(0, n)}…${v.slice(-6)}`;
+    }
+
+    function summarizeTrades(trades) {
+      let volume = 0;
+      let builderFees = 0;
+      let protocolFees = 0;
+      const bySide = { BUY: 0, SELL: 0 };
+      for (const t of trades) {
+        volume += Number(t.sizeUsdc || 0);
+        builderFees += Number(t.builderFee || 0);
+        protocolFees += Number(t.feeUsdc || 0);
+        if (bySide[t.side] != null) bySide[t.side] += 1;
+      }
+      return { volume, builderFees, protocolFees, bySide, count: trades.length };
+    }
+
+    function renderBuilderDashboard(feesPayload, tradesPayload) {
+      const fees = feesPayload?.fees ?? {};
+      const code = feesPayload?.builderCode ?? fees.code ?? '—';
+      const trades = tradesPayload?.trades ?? [];
+      builderTrades = trades;
+      const summary = summarizeTrades(trades);
+
+      let html = '';
+
+      html += `<div class="stats-grid">`;
+      html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${shortHex(code, 8)}</div><div class="stat-sub">${code}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Taker fee</div><div class="stat-value">${fees.builder_taker_fee_rate_bps ?? '—'} bps</div><div class="stat-sub">${fees.enabled ? 'Enabled' : 'Disabled'}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Matched trades</div><div class="stat-value">${summary.count}</div><div class="stat-sub">${tradesPayload?.hasMore ? 'More available — increase max pages' : 'Loaded on refresh'}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Volume</div><div class="stat-value">${fmtUsd(summary.volume)}</div><div class="stat-sub">USDC notional</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Builder fees</div><div class="stat-value">${fmtUsd(summary.builderFees)}</div><div class="stat-sub">Your attribution fees</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(summary.protocolFees)}</div><div class="stat-sub">feeUsdc on trades</div></div>`;
+      html += `</div>`;
+
+      html += `<p class="hint">Shows <b>matched</b> builder-attributed trades from <code>/builder/trades</code>. Resting open orders are not exposed on this API — only fills appear here.</p>`;
+
+      if (!trades.length) {
+        html += `<div class="status">No matched builder trades yet.</div>`;
+        builderOutput.innerHTML = html;
+        return;
+      }
+
+      html += `<div class="table-wrap"><table><thead><tr>`;
+      html += `<th>Time</th><th>Side</th><th>Outcome</th><th>Price</th><th>Size USDC</th><th>Builder fee</th><th>Protocol fee</th><th>Market</th><th>Tx</th>`;
+      html += `</tr></thead><tbody>`;
+
+      for (const t of trades) {
+        const sideCls = t.side === 'BUY' ? 'side-buy' : 'side-sell';
+        const tx = t.transactionHash
+          ? `<a class="link-btn" href="https://polygonscan.com/tx/${t.transactionHash}" target="_blank" rel="noopener">${shortHex(t.transactionHash, 6)}</a>`
+          : '—';
+        html += `<tr>`;
+        html += `<td>${fmtTime(t.createdAt)}</td>`;
+        html += `<td class="${sideCls}">${fmt(t.side)}</td>`;
+        html += `<td>${fmt(t.outcome)}</td>`;
+        html += `<td>${fmt(t.price)}</td>`;
+        html += `<td>${fmtUsd(t.sizeUsdc)}</td>`;
+        html += `<td>${fmtUsd(t.builderFee)}</td>`;
+        html += `<td>${fmtUsd(t.feeUsdc)}</td>`;
+        html += `<td class="mono">${shortHex(t.market, 6)}</td>`;
+        html += `<td>${tx}</td>`;
+        html += `</tr>`;
+      }
+
+      html += `</tbody></table></div>`;
+      builderOutput.innerHTML = html;
+    }
+
+    async function loadBuilderDashboard() {
+      builderRefreshBtn.disabled = true;
+      builderStatus.textContent = 'Loading fees and trades…';
+      builderOutput.innerHTML = '';
+
+      try {
+        const [feesRes, tradesRes] = await Promise.all([
+          fetch('/api/builder-fees'),
+          fetch('/api/builder-trades?all=1'),
+        ]);
+
+        const feesJson = await feesRes.json();
+        const tradesJson = await tradesRes.json();
+
+        if (!feesRes.ok || !feesJson.success) {
+          throw new Error(feesJson.error || `Fees API HTTP ${feesRes.status}`);
+        }
+        if (!tradesRes.ok || !tradesJson.success) {
+          throw new Error(tradesJson.error || `Trades API HTTP ${tradesRes.status}`);
+        }
+
+        renderBuilderDashboard(feesJson, tradesJson);
+        builderStatus.textContent = `Updated ${new Date().toLocaleTimeString()} · ${tradesJson.trades?.length ?? 0} trades`;
+      } catch (err) {
+        builderOutput.innerHTML = `<div class="error">${err.message}<br><br>Set <code>POLYMARKET_BUILDER_*</code> env vars on Vercel (see <code>.env.example</code>). Local: <code>vercel dev</code>.</div>`;
+        builderStatus.textContent = 'Failed to load';
+      } finally {
+        builderRefreshBtn.disabled = false;
+      }
+    }
+
+    loadBuilderDashboard();
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') fetchFromInput(); });
 
