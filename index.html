@@ -542,6 +542,7 @@
     let builderTrades = [];
     let builderFeesPayload = null;
     let builderTradesPayload = null;
+    let builderOfficialVolume = null;
     let builderFeeFilter = 'all';
 
     document.querySelectorAll('.tab').forEach(tab => {
@@ -653,40 +654,64 @@
     }
 
     function summarizeTrades(trades) {
-      let volume = 0;
+      let volumeUsdc = 0;
+      let shareNotional = 0;
       let builderFees = 0;
       let protocolFees = 0;
       let preFeeCount = 0;
       let postFeeCount = 0;
-      let preFeeVolume = 0;
-      let postFeeVolume = 0;
+      let preFeeVolumeUsdc = 0;
+      let postFeeVolumeUsdc = 0;
       const bySide = { BUY: 0, SELL: 0 };
       for (const t of trades) {
         const usdc = Number(t.sizeUsdc || 0);
+        const shares = Number(t.size || 0);
         const bf = Number(t.builderFee || 0);
-        volume += usdc;
+        volumeUsdc += usdc;
+        shareNotional += shares;
         builderFees += bf;
         protocolFees += Number(t.feeUsdc || 0);
         if (bySide[t.side] != null) bySide[t.side] += 1;
         if (hasBuilderFee(t)) {
           postFeeCount += 1;
-          postFeeVolume += usdc;
+          postFeeVolumeUsdc += usdc;
         } else {
           preFeeCount += 1;
-          preFeeVolume += usdc;
+          preFeeVolumeUsdc += usdc;
         }
       }
       return {
-        volume,
+        volumeUsdc,
+        shareNotional,
         builderFees,
         protocolFees,
         bySide,
         count: trades.length,
         preFeeCount,
         postFeeCount,
-        preFeeVolume,
-        postFeeVolume,
+        preFeeVolumeUsdc,
+        postFeeVolumeUsdc,
       };
+    }
+
+    async function fetchOfficialBuilderVolume(builderCode) {
+      if (!builderCode || builderCode === '—') return null;
+      try {
+        const code = builderCode.toLowerCase();
+        const out = {};
+        for (const period of ['WEEK', 'MONTH']) {
+          const res = await fetch(`https://data-api.polymarket.com/v1/builders/volume?timePeriod=${period}`);
+          if (!res.ok) continue;
+          const arr = await res.json();
+          const entries = (Array.isArray(arr) ? arr : []).filter(
+            e => (e.builderCode || '').toLowerCase() === code,
+          );
+          out[period] = entries.reduce((s, e) => s + Number(e.volume || 0), 0);
+        }
+        return out;
+      } catch {
+        return null;
+      }
     }
 
     function filteredBuilderTrades(trades) {
@@ -698,32 +723,39 @@
     function setBuilderFeeFilter(mode) {
       builderFeeFilter = mode;
       if (builderFeesPayload && builderTradesPayload) {
-        renderBuilderDashboard(builderFeesPayload, builderTradesPayload);
+        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
       }
     }
 
-    function renderBuilderDashboard(feesPayload, tradesPayload) {
+    function renderBuilderDashboard(feesPayload, tradesPayload, officialVolume = builderOfficialVolume) {
       builderFeesPayload = feesPayload;
       builderTradesPayload = tradesPayload;
+      builderOfficialVolume = officialVolume;
       const fees = feesPayload?.fees ?? {};
       const code = feesPayload?.builderCode ?? fees.code ?? '—';
       const allTrades = tradesPayload?.trades ?? [];
       builderTrades = allTrades;
       const summary = summarizeTrades(allTrades);
       const trades = filteredBuilderTrades(allTrades);
+      const pmWeek = officialVolume?.WEEK;
+      const pmMonth = officialVolume?.MONTH;
 
       let html = '';
 
       html += `<div class="stats-grid">`;
       html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${shortHex(code, 8)}</div><div class="stat-sub">${code}</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Taker fee (now)</div><div class="stat-value">${fees.builder_taker_fee_rate_bps ?? '—'} bps</div><div class="stat-sub">${fees.enabled ? 'Enabled' : 'Disabled'}</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">With builder fee</div><div class="stat-value">${summary.postFeeCount}</div><div class="stat-sub">${fmtUsd(summary.postFeeVolume)} volume · ${fmtUsd(summary.builderFees)} fees</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Pre-fee era</div><div class="stat-value">${summary.preFeeCount}</div><div class="stat-sub">${fmtUsd(summary.preFeeVolume)} volume · attributed, $0 builder fee</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Total volume</div><div class="stat-value">${fmtUsd(summary.volume)}</div><div class="stat-sub">${summary.count} matched trades</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(summary.protocolFees)}</div><div class="stat-sub">feeUsdc on all trades</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Share notional</div><div class="stat-value">${summary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div class="stat-sub">Sum of <code>size</code> (contracts) · matches Polymarket builder UI ~5–7k</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(summary.volumeUsdc)}</div><div class="stat-sub">Sum of <code>sizeUsdc</code> · actual \$ flow · ${summary.count} trades</div></div>`;
+      if (pmWeek != null || pmMonth != null) {
+        html += `<div class="stat-card"><div class="stat-label">Polymarket official</div><div class="stat-value">${pmWeek != null ? pmWeek.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</div><div class="stat-sub">WEEK leaderboard volume${pmMonth != null ? ` · MONTH ${pmMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''} (share notional)</div></div>`;
+      }
+      html += `<div class="stat-card"><div class="stat-label">With builder fee</div><div class="stat-value">${summary.postFeeCount}</div><div class="stat-sub">${fmtUsd(summary.postFeeVolumeUsdc)} USDC · ${fmtUsd(summary.builderFees)} fees</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Pre-fee era</div><div class="stat-value">${summary.preFeeCount}</div><div class="stat-sub">${fmtUsd(summary.preFeeVolumeUsdc)} USDC · attributed, $0 builder fee</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(summary.protocolFees)}</div><div class="stat-sub">Polymarket <code>feeUsdc</code> (not yours)</div></div>`;
       html += `</div>`;
 
-      html += `<p class="hint"><b>Pre-fee</b> = builder-attributed trade with <code>builderFee = 0</code> (before fee tier applied). <b>Fee charged</b> = <code>builderFee &gt; 0</code>. Both still count toward builder volume. Polymarket returns up to 300 trades per API page — this dashboard auto-fetches all pages. Only <b>matched/filled</b> trades appear (resting limit orders are not listed).</p>`;
+      html += `<p class="hint"><b>Polymarket builder volume is share notional</b> (contracts traded), not USDC. Example: 10 Yes shares @ 50¢ = <b>10</b> on the leaderboard but <b>$5 USDC</b> notional. Your ~${summary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })} shares ≈ what Polymarket shows; ~${fmtUsd(summary.volumeUsdc)} is the actual dollar volume. <b>Pre-fee</b> trades have <code>builderFee = 0</code>. Only matched fills appear here.</p>`;
 
       html += `<div class="filter-row">`;
       html += `<span class="status" style="margin:0">Show:</span>`;
@@ -747,7 +779,7 @@
       }
 
       html += `<div class="table-wrap"><table><thead><tr>`;
-      html += `<th>Time</th><th>Era</th><th>Side</th><th>Outcome</th><th>Price</th><th>Size USDC</th><th>Builder fee</th><th>Protocol fee</th><th>Market</th><th>Tx</th>`;
+      html += `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th>Builder fee</th><th>Protocol fee</th><th>Market</th><th>Tx</th>`;
       html += `</tr></thead><tbody>`;
 
       for (const t of trades) {
@@ -763,9 +795,11 @@
         html += `<tr class="${rowCls}">`;
         html += `<td>${fmtTime(t.createdAt)}</td>`;
         html += `<td>${eraBadge}</td>`;
+        html += `<td>${fmt(t.tradeType)}</td>`;
         html += `<td class="${sideCls}">${fmt(t.side)}</td>`;
         html += `<td>${fmt(t.outcome)}</td>`;
         html += `<td>${fmt(t.price)}</td>`;
+        html += `<td>${Number(t.size || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>`;
         html += `<td>${fmtUsd(t.sizeUsdc)}</td>`;
         html += `<td>${hasBuilderFee(t) ? fmtUsd(t.builderFee) : '$0.00'}</td>`;
         html += `<td>${fmtUsd(t.feeUsdc)}</td>`;
@@ -795,6 +829,9 @@
 
         const feesJson = await feesRes.json();
         const tradesJson = await tradesRes.json();
+        const pmVolume = feesJson.success
+          ? await fetchOfficialBuilderVolume(feesJson.builderCode ?? feesJson.fees?.code)
+          : null;
 
         if (!feesRes.ok || !feesJson.success) {
           if (feesRes.status === 401 || tradesRes.status === 401) {
@@ -813,7 +850,7 @@
           throw new Error(tradesJson.error || `Trades API HTTP ${tradesRes.status}`);
         }
 
-        renderBuilderDashboard(feesJson, tradesJson);
+        renderBuilderDashboard(feesJson, tradesJson, pmVolume);
         const n = tradesJson.trades?.length ?? 0;
         const pages = tradesJson.pages ?? 1;
         let status = `Updated ${new Date().toLocaleTimeString()} · ${n} matched trades`;
