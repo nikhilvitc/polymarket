@@ -540,6 +540,9 @@
     const builderLoginError = document.getElementById('builderLoginError');
     const BUILDER_AUTH_KEY = 'builderDashboardPassword';
     let builderTrades = [];
+    let builderFeesPayload = null;
+    let builderTradesPayload = null;
+    let builderFeeFilter = 'all';
 
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -640,12 +643,6 @@
       if (v.length <= n * 2 + 2) return v;
       return `${v.slice(0, n)}…${v.slice(-6)}`;
     }
-
-    const builderRefreshBtn = document.getElementById('builderRefreshBtn');
-    let builderTrades = [];
-    let builderFeesPayload = null;
-    let builderTradesPayload = null;
-    let builderFeeFilter = 'all';
 
     function hasBuilderFee(trade) {
       return Number(trade.builderFee || 0) > 0;
