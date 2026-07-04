@@ -422,6 +422,39 @@
     }
 
     .toolbar .status { margin: 0; }
+
+    .login-card {
+      background: #161824;
+      border: 1px solid #252840;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 360px;
+    }
+
+    .login-card h3 {
+      color: #f1f5f9;
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+
+    .login-card p {
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    .login-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .login-row input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -439,11 +472,23 @@
     </div>
 
     <div id="panel-builder" class="panel active">
-      <div class="toolbar">
-        <button id="builderRefreshBtn" onclick="loadBuilderDashboard()">Refresh</button>
-        <span class="status" id="builderStatus">Loading builder data…</span>
+      <div id="builderLogin" class="login-card">
+        <h3>Builder dashboard</h3>
+        <p>Enter password to view fees and matched trades.</p>
+        <div class="login-row">
+          <input type="password" id="builderPasswordInput" placeholder="Password" autocomplete="current-password" />
+          <button type="button" id="builderLoginBtn" onclick="submitBuilderLogin()">Unlock</button>
+        </div>
+        <p class="error hidden" id="builderLoginError" style="margin-top:12px;margin-bottom:0"></p>
       </div>
-      <div id="builderOutput"></div>
+      <div id="builderApp" class="hidden">
+        <div class="toolbar">
+          <button id="builderRefreshBtn" onclick="loadBuilderDashboard()">Refresh</button>
+          <button type="button" onclick="logoutBuilderDashboard()">Lock</button>
+          <span class="status" id="builderStatus">Loading builder data…</span>
+        </div>
+        <div id="builderOutput"></div>
+      </div>
     </div>
 
     <div id="panel-lookup" class="panel">
@@ -489,6 +534,11 @@
     const builderOutput = document.getElementById('builderOutput');
     const builderStatus = document.getElementById('builderStatus');
     const builderRefreshBtn = document.getElementById('builderRefreshBtn');
+    const builderLogin = document.getElementById('builderLogin');
+    const builderApp = document.getElementById('builderApp');
+    const builderPasswordInput = document.getElementById('builderPasswordInput');
+    const builderLoginError = document.getElementById('builderLoginError');
+    const BUILDER_AUTH_KEY = 'builderDashboardPassword';
     let builderTrades = [];
 
     document.querySelectorAll('.tab').forEach(tab => {
@@ -497,9 +547,82 @@
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
-        if (tab.dataset.tab === 'builder' && !builderTrades.length) loadBuilderDashboard();
+        if (tab.dataset.tab === 'builder' && builderIsUnlocked() && !builderTrades.length) loadBuilderDashboard();
       });
     });
+
+    builderPasswordInput?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitBuilderLogin();
+    });
+
+    function builderAuthPassword() {
+      return sessionStorage.getItem(BUILDER_AUTH_KEY) || '';
+    }
+
+    function builderIsUnlocked() {
+      return Boolean(builderAuthPassword());
+    }
+
+    function builderAuthHeaders() {
+      const password = builderAuthPassword();
+      return password ? { 'X-Dashboard-Password': password } : {};
+    }
+
+    function showBuilderLogin(message) {
+      builderLogin.classList.remove('hidden');
+      builderApp.classList.add('hidden');
+      builderLoginError.classList.toggle('hidden', !message);
+      if (message) builderLoginError.textContent = message;
+    }
+
+    function showBuilderApp() {
+      builderLogin.classList.add('hidden');
+      builderApp.classList.remove('hidden');
+      builderLoginError.classList.add('hidden');
+    }
+
+    async function submitBuilderLogin() {
+      const password = builderPasswordInput.value;
+      builderLoginError.classList.add('hidden');
+      try {
+        const res = await fetch('/api/builder-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || 'Wrong password');
+        }
+        if (json.required !== false) {
+          sessionStorage.setItem(BUILDER_AUTH_KEY, password);
+        } else {
+          sessionStorage.removeItem(BUILDER_AUTH_KEY);
+        }
+        showBuilderApp();
+        loadBuilderDashboard();
+      } catch (err) {
+        builderLoginError.textContent = err.message || 'Login failed';
+        builderLoginError.classList.remove('hidden');
+      }
+    }
+
+    function logoutBuilderDashboard() {
+      sessionStorage.removeItem(BUILDER_AUTH_KEY);
+      builderTrades = [];
+      builderPasswordInput.value = '';
+      builderOutput.innerHTML = '';
+      showBuilderLogin();
+    }
+
+    async function initBuilderDashboard() {
+      if (!builderIsUnlocked()) {
+        showBuilderLogin();
+        return;
+      }
+      showBuilderApp();
+      loadBuilderDashboard();
+    }
 
     function fmtUsd(n) {
       const v = Number(n);
@@ -669,17 +792,27 @@
 
       try {
         const [feesRes, tradesRes] = await Promise.all([
-          fetch('/api/builder-fees'),
-          fetch('/api/builder-trades?all=1'),
+          fetch('/api/builder-fees', { headers: builderAuthHeaders() }),
+          fetch('/api/builder-trades?all=1', { headers: builderAuthHeaders() }),
         ]);
 
         const feesJson = await feesRes.json();
         const tradesJson = await tradesRes.json();
 
         if (!feesRes.ok || !feesJson.success) {
+          if (feesRes.status === 401 || tradesRes.status === 401) {
+            logoutBuilderDashboard();
+            showBuilderLogin('Session expired — enter password again.');
+            return;
+          }
           throw new Error(feesJson.error || `Fees API HTTP ${feesRes.status}`);
         }
         if (!tradesRes.ok || !tradesJson.success) {
+          if (tradesRes.status === 401) {
+            logoutBuilderDashboard();
+            showBuilderLogin('Session expired — enter password again.');
+            return;
+          }
           throw new Error(tradesJson.error || `Trades API HTTP ${tradesRes.status}`);
         }
 
@@ -693,7 +826,7 @@
       }
     }
 
-    loadBuilderDashboard();
+    initBuilderDashboard();
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') fetchFromInput(); });
 

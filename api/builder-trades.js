@@ -1,8 +1,14 @@
 const { fetchBuilderTrades, fetchAllBuilderTrades } = require('./_lib/polymarket-builder');
+const { isDashboardAuthorized, rejectUnauthorized } = require('./_lib/dashboard-auth');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  if (!isDashboardAuthorized(req)) {
+    rejectUnauthorized(res);
     return;
   }
 

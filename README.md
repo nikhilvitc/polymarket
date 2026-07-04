@@ -21,6 +21,7 @@ Credentials stay on the server — never in the browser.
    - `POLYMARKET_BUILDER_API_SECRET`
    - `POLYMARKET_BUILDER_API_PASSPHRASE`
    - `POLYMARKET_BUILDER_CODE`
+   - `BUILDER_DASHBOARD_PASSWORD` — e.g. `YeNo&PoLy`
 
    Copy from Polymarket → Settings → Builder (or YeNo prod SSM `/yeno/api/polymarket-builder-*`).
 
