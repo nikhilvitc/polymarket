@@ -361,6 +361,19 @@
       padding: 14px 16px;
     }
 
+    .stat-card-earnings {
+      border-color: #166534;
+      background: linear-gradient(135deg, #0f1f17 0%, #161824 100%);
+    }
+
+    .stat-card-earnings .stat-value {
+      color: #4ade80;
+    }
+
+    .earnings-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
     .stat-label {
       color: #64748b;
       font-size: 0.72rem;
@@ -704,6 +717,19 @@
       return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
     }
 
+    function formatBpsRate(bps) {
+      const n = Number(bps);
+      if (!Number.isFinite(n)) return '—';
+      return `${n} bps (${(n / 100).toFixed(2)}%)`;
+    }
+
+    function estimateBuilderFeeUsdc(sizeUsdc, rateBps) {
+      const usdc = Number(sizeUsdc);
+      const bps = Number(rateBps);
+      if (!Number.isFinite(usdc) || usdc <= 0 || !Number.isFinite(bps) || bps <= 0) return 0;
+      return Math.round((usdc * bps) / 10_000 * 10_000) / 10_000;
+    }
+
     function fmtTime(iso) {
       if (!iso) return '—';
       return new Date(iso).toLocaleString();
@@ -728,6 +754,12 @@
       let shareNotional = 0;
       let builderFees = 0;
       let protocolFees = 0;
+      let takerEarnings = 0;
+      let makerEarnings = 0;
+      let takerVolumeUsdc = 0;
+      let makerVolumeUsdc = 0;
+      let takerCount = 0;
+      let makerCount = 0;
       let preFeeCount = 0;
       let postFeeCount = 0;
       let preFeeVolumeUsdc = 0;
@@ -742,6 +774,16 @@
         builderFees += bf;
         protocolFees += Number(t.feeUsdc || 0);
         if (bySide[t.side] != null) bySide[t.side] += 1;
+        const isMaker = String(t.tradeType || '').toUpperCase() === 'MAKER';
+        if (isMaker) {
+          makerEarnings += bf;
+          makerVolumeUsdc += usdc;
+          makerCount += 1;
+        } else {
+          takerEarnings += bf;
+          takerVolumeUsdc += usdc;
+          takerCount += 1;
+        }
         if (hasBuilderFee(t)) {
           postFeeCount += 1;
           postFeeVolumeUsdc += usdc;
@@ -750,11 +792,20 @@
           preFeeVolumeUsdc += usdc;
         }
       }
+      const effectiveRateBps =
+        volumeUsdc > 0 ? Math.round((builderFees / volumeUsdc) * 10_000 * 100) / 100 : 0;
       return {
         volumeUsdc,
         shareNotional,
         builderFees,
         protocolFees,
+        takerEarnings,
+        makerEarnings,
+        takerVolumeUsdc,
+        makerVolumeUsdc,
+        takerCount,
+        makerCount,
+        effectiveRateBps,
         bySide,
         count: trades.length,
         preFeeCount,
@@ -816,9 +867,16 @@
         html += `<p class="hint" style="margin-bottom:12px"><b>Account:</b> ${selectedBuilderLabel}</p>`;
       }
 
-      html += `<div class="stats-grid">`;
+      const takerBps = fees.builder_taker_fee_rate_bps ?? 0;
+      const makerBps = fees.builder_maker_fee_rate_bps ?? 0;
+      const exampleTakerFee = estimateBuilderFeeUsdc(1000, takerBps);
+
+      html += `<div class="stats-grid earnings-grid">`;
+      html += `<div class="stat-card stat-card-earnings"><div class="stat-label">You earn (taker fee)</div><div class="stat-value">${formatBpsRate(takerBps)}</div><div class="stat-sub">${fees.enabled ? 'Active on taker fills' : 'Disabled'} · ${fmtUsd(exampleTakerFee)} per $1,000 USDC taker volume</div></div>`;
+      html += `<div class="stat-card stat-card-earnings"><div class="stat-label">Total builder fees earned</div><div class="stat-value">${fmtUsd(summary.builderFees)}</div><div class="stat-sub">Effective ${summary.effectiveRateBps.toFixed(2)} bps on ${fmtUsd(summary.volumeUsdc)} matched USDC</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Taker earnings</div><div class="stat-value">${fmtUsd(summary.takerEarnings)}</div><div class="stat-sub">${summary.takerCount.toLocaleString()} taker fills · ${fmtUsd(summary.takerVolumeUsdc)} vol</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Maker fee (you earn)</div><div class="stat-value">${formatBpsRate(makerBps)}</div><div class="stat-sub">${fmtUsd(summary.makerEarnings)} from ${summary.makerCount.toLocaleString()} maker fills</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${shortHex(code, 8)}</div><div class="stat-sub">${code}</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Taker fee (now)</div><div class="stat-value">${fees.builder_taker_fee_rate_bps ?? '—'} bps</div><div class="stat-sub">${fees.enabled ? 'Enabled' : 'Disabled'}</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Share notional</div><div class="stat-value">${summary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div class="stat-sub">Sum of <code>size</code> (contracts) · matches Polymarket builder UI ~5–7k</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(summary.volumeUsdc)}</div><div class="stat-sub">Sum of <code>sizeUsdc</code> · actual \$ flow · ${summary.count} trades</div></div>`;
       if (pmWeek != null || pmMonth != null) {
@@ -829,7 +887,7 @@
       html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(summary.protocolFees)}</div><div class="stat-sub">Polymarket <code>feeUsdc</code> (not yours)</div></div>`;
       html += `</div>`;
 
-      html += `<p class="hint"><b>Polymarket builder volume is share notional</b> (contracts traded), not USDC. Example: 10 Yes shares @ 50¢ = <b>10</b> on the leaderboard but <b>$5 USDC</b> notional. Your ~${summary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })} shares ≈ what Polymarket shows; ~${fmtUsd(summary.volumeUsdc)} is the actual dollar volume. <b>Pre-fee</b> trades have <code>builderFee = 0</code>. Only matched fills appear here.</p>`;
+      html += `<p class="hint"><b>Builder taker fee = what you earn.</b> Current rate is <b>${formatBpsRate(takerBps)}</b> on taker USDC notional (example: ${fmtUsd(exampleTakerFee)} per $1,000). <b>Polymarket builder volume is share notional</b> (contracts traded), not USDC. Your ~${summary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })} shares ≈ Polymarket leaderboard; ~${fmtUsd(summary.volumeUsdc)} is actual dollar flow. <b>Pre-fee</b> trades have <code>builderFee = 0</code>. Protocol <code>feeUsdc</code> is Polymarket's cut, not yours.</p>`;
 
       html += `<div class="filter-row">`;
       html += `<span class="status" style="margin:0">Show:</span>`;
