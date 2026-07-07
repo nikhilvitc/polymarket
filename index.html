@@ -379,6 +379,86 @@
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
+    .fees-hero {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 16px 18px;
+      border: 1px solid #166534;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0a1f14 0%, #12141f 55%, #161824 100%);
+      box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.08), 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .fees-hero-title {
+      grid-column: 1 / -1;
+      color: #86efac;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .fees-hero-item .fees-hero-label {
+      color: #64748b;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .fees-hero-item .fees-hero-value {
+      color: #4ade80;
+      font-size: 1.35rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .fees-hero-item .fees-hero-sub {
+      color: #94a3b8;
+      font-size: 0.72rem;
+      margin-top: 4px;
+    }
+
+    .fees-hero-item.fees-hero-total .fees-hero-value {
+      font-size: 1.6rem;
+    }
+
+    th.col-your-fee, td.col-your-fee {
+      background: rgba(74, 222, 128, 0.06);
+    }
+
+    th.col-your-fee {
+      color: #86efac;
+    }
+
+    td.col-your-fee {
+      color: #4ade80;
+      font-weight: 700;
+    }
+
+    td.col-your-fee.fee-zero {
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .page-fee-total {
+      margin: 0 0 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(74, 222, 128, 0.08);
+      border: 1px solid rgba(74, 222, 128, 0.2);
+      color: #cbd5e1;
+      font-size: 0.82rem;
+    }
+
+    .page-fee-total b {
+      color: #4ade80;
+    }
+
     .stat-label {
       color: #64748b;
       font-size: 0.72rem;
@@ -895,6 +975,16 @@
       const takerBps = fees.builder_taker_fee_rate_bps ?? 0;
       const makerBps = fees.builder_maker_fee_rate_bps ?? 0;
       const exampleTakerFee = estimateBuilderFeeUsdc(1000, takerBps);
+      const exampleMakerFee = estimateBuilderFeeUsdc(1000, makerBps);
+      const pageBuilderFees = pageTrades.reduce((s, t) => s + Number(t.builderFee || 0), 0);
+
+      html += `<div class="fees-hero">`;
+      html += `<div class="fees-hero-title">YeNo builder fees — what you earn</div>`;
+      html += `<div class="fees-hero-item"><div class="fees-hero-label">Taker fee rate</div><div class="fees-hero-value">${formatBpsRate(takerBps)}</div><div class="fees-hero-sub">${fees.enabled ? 'Active · charged on taker fills' : 'Disabled on Polymarket'}</div></div>`;
+      html += `<div class="fees-hero-item"><div class="fees-hero-label">Maker fee rate</div><div class="fees-hero-value">${formatBpsRate(makerBps)}</div><div class="fees-hero-sub">${fmtUsd(summary.makerEarnings)} earned from ${summary.makerCount.toLocaleString()} maker fills</div></div>`;
+      html += `<div class="fees-hero-item fees-hero-total"><div class="fees-hero-label">Total fees earned</div><div class="fees-hero-value">${fmtUsd(summary.builderFees)}</div><div class="fees-hero-sub">${fmtUsd(summary.takerEarnings)} taker + ${fmtUsd(summary.makerEarnings)} maker · ${summary.postFeeCount.toLocaleString()} fee-charged trades</div></div>`;
+      html += `<div class="fees-hero-item"><div class="fees-hero-label">Example per $1,000 vol</div><div class="fees-hero-value">${fmtUsd(exampleTakerFee)}</div><div class="fees-hero-sub">Taker ${fmtUsd(exampleTakerFee)} · Maker ${fmtUsd(exampleMakerFee)}</div></div>`;
+      html += `</div>`;
 
       html += `<div class="stats-grid earnings-grid">`;
       html += `<div class="stat-card stat-card-earnings"><div class="stat-label">You earn (taker fee)</div><div class="stat-value">${formatBpsRate(takerBps)}</div><div class="stat-sub">${fees.enabled ? 'Active on taker fills' : 'Disabled'} · ${fmtUsd(exampleTakerFee)} per $1,000 USDC taker volume</div></div>`;
@@ -941,8 +1031,10 @@
       html += `<span class="pager">Showing ${pageStart + 1}–${pageEnd} of ${trades.length.toLocaleString()} · page ${builderTradePage + 1} / ${totalPages}</span>`;
       html += `</div>`;
 
+      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total: <b>${fmtUsd(trades.reduce((s, t) => s + Number(t.builderFee || 0), 0))}</b> · All time: <b>${fmtUsd(summary.builderFees)}</b></p>`;
+
       html += `<div class="table-wrap"><table><thead><tr>`;
-      html += `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th>Builder fee</th><th>Protocol fee</th><th>Market</th><th>Tx</th>`;
+      html += `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th class="col-your-fee">Your fee</th><th>PM protocol fee</th><th>Market</th><th>Tx</th>`;
       html += `</tr></thead><tbody>`;
 
       for (const t of pageTrades) {
@@ -964,7 +1056,8 @@
         html += `<td>${fmt(t.price)}</td>`;
         html += `<td>${Number(t.size || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>`;
         html += `<td>${fmtUsd(t.sizeUsdc)}</td>`;
-        html += `<td>${hasBuilderFee(t) ? fmtUsd(t.builderFee) : '$0.00'}</td>`;
+        const bf = Number(t.builderFee || 0);
+        html += `<td class="col-your-fee${bf > 0 ? '' : ' fee-zero'}">${bf > 0 ? fmtUsd(t.builderFee) : '$0.00'}</td>`;
         html += `<td>${fmtUsd(t.feeUsdc)}</td>`;
         html += `<td class="mono">${shortHex(t.market, 6)}</td>`;
         html += `<td>${tx}</td>`;
