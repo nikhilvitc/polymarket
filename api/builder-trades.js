@@ -1,4 +1,4 @@
-const { fetchBuilderTrades, fetchAllBuilderTrades } = require('./_lib/polymarket-builder');
+const { fetchBuilderTrades, fetchAllBuilderTrades, resolveBuilderCode } = require('./_lib/polymarket-builder');
 const { isDashboardAuthorized, rejectUnauthorized } = require('./_lib/dashboard-auth');
 
 module.exports = async function handler(req, res) {
@@ -16,13 +16,15 @@ module.exports = async function handler(req, res) {
     const market = typeof req.query.market === 'string' ? req.query.market : undefined;
     const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
     const all = req.query.all === '1' || req.query.all === 'true';
+    const code = typeof req.query.code === 'string' ? req.query.code : undefined;
+    const builderCode = resolveBuilderCode(code);
 
     const result = all
-      ? await fetchAllBuilderTrades({ market, maxPages: 100 })
-      : await fetchBuilderTrades({ market, cursor });
+      ? await fetchAllBuilderTrades({ code: builderCode, market, maxPages: 100 })
+      : await fetchBuilderTrades({ code: builderCode, market, cursor });
 
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ success: true, ...result });
+    res.status(200).json({ success: true, builderCode, ...result });
   } catch (err) {
     res.status(500).json({
       success: false,

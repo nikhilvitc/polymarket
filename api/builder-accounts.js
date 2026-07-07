@@ -1,4 +1,4 @@
-const { fetchBuilderFees } = require('./_lib/polymarket-builder');
+const { listTrackedBuilders } = require('./_lib/polymarket-builder');
 const { isDashboardAuthorized, rejectUnauthorized } = require('./_lib/dashboard-auth');
 
 module.exports = async function handler(req, res) {
@@ -13,19 +13,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const code = typeof req.query.code === 'string' ? req.query.code : undefined;
-    const fees = await fetchBuilderFees(code);
-    const resolvedCode = fees.code ?? code;
+    const accounts = listTrackedBuilders();
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({
-      success: true,
-      builderCode: resolvedCode,
-      fees,
-    });
+    res.status(200).json({ success: true, accounts });
   } catch (err) {
     res.status(500).json({
       success: false,
-      error: err instanceof Error ? err.message : 'Failed to fetch builder fees',
+      error: err instanceof Error ? err.message : 'Failed to list builder accounts',
     });
   }
 };

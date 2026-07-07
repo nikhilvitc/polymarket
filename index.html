@@ -55,6 +55,16 @@
       color: #e0e7ff;
     }
 
+    .builder-account-tabs {
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .builder-account-tabs .tab {
+      font-size: 0.8rem;
+      padding: 6px 12px;
+    }
+
     .panel { display: none; }
     .panel.active { display: block; }
 
@@ -482,6 +492,7 @@
         <p class="error hidden" id="builderLoginError" style="margin-top:12px;margin-bottom:0"></p>
       </div>
       <div id="builderApp" class="hidden">
+        <div id="builderAccountTabs" class="tabs builder-account-tabs hidden"></div>
         <div class="toolbar">
           <button id="builderRefreshBtn" onclick="loadBuilderDashboard()">Refresh</button>
           <button type="button" onclick="logoutBuilderDashboard()">Lock</button>
@@ -538,7 +549,11 @@
     const builderApp = document.getElementById('builderApp');
     const builderPasswordInput = document.getElementById('builderPasswordInput');
     const builderLoginError = document.getElementById('builderLoginError');
+    const builderAccountTabs = document.getElementById('builderAccountTabs');
     const BUILDER_AUTH_KEY = 'builderDashboardPassword';
+    let builderAccounts = [];
+    let selectedBuilderCode = null;
+    let selectedBuilderLabel = '';
     let builderTrades = [];
     let builderFeesPayload = null;
     let builderTradesPayload = null;
@@ -604,6 +619,7 @@
           sessionStorage.removeItem(BUILDER_AUTH_KEY);
         }
         showBuilderApp();
+        await loadBuilderAccounts();
         loadBuilderDashboard();
       } catch (err) {
         builderLoginError.textContent = err.message || 'Login failed';
@@ -613,10 +629,58 @@
 
     function logoutBuilderDashboard() {
       sessionStorage.removeItem(BUILDER_AUTH_KEY);
+      builderAccounts = [];
+      selectedBuilderCode = null;
+      selectedBuilderLabel = '';
       builderTrades = [];
       builderPasswordInput.value = '';
       builderOutput.innerHTML = '';
       showBuilderLogin();
+    }
+
+    async function loadBuilderAccounts() {
+      const res = await fetch('/api/builder-accounts', { headers: builderAuthHeaders() });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || `Accounts API HTTP ${res.status}`);
+      }
+      builderAccounts = json.accounts ?? [];
+      if (!builderAccounts.length) {
+        throw new Error('No builder accounts configured');
+      }
+      if (!selectedBuilderCode) {
+        selectedBuilderCode = builderAccounts[0].code;
+        selectedBuilderLabel = builderAccounts[0].label;
+      }
+      renderBuilderAccountTabs();
+    }
+
+    function renderBuilderAccountTabs() {
+      if (!builderAccountTabs) return;
+      if (builderAccounts.length <= 1) {
+        builderAccountTabs.classList.add('hidden');
+        builderAccountTabs.innerHTML = '';
+        return;
+      }
+      builderAccountTabs.classList.remove('hidden');
+      builderAccountTabs.innerHTML = builderAccounts
+        .map((account) => {
+          const active = account.code.toLowerCase() === selectedBuilderCode?.toLowerCase() ? ' active' : '';
+          return `<button type="button" class="tab${active}" data-builder-account="${account.code}">${account.label}</button>`;
+        })
+        .join('');
+      builderAccountTabs.querySelectorAll('[data-builder-account]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const code = btn.dataset.builderAccount;
+          const account = builderAccounts.find((a) => a.code === code);
+          if (!account || code === selectedBuilderCode) return;
+          selectedBuilderCode = account.code;
+          selectedBuilderLabel = account.label;
+          builderFeeFilter = 'all';
+          renderBuilderAccountTabs();
+          loadBuilderDashboard();
+        });
+      });
     }
 
     async function initBuilderDashboard() {
@@ -625,7 +689,13 @@
         return;
       }
       showBuilderApp();
-      loadBuilderDashboard();
+      try {
+        await loadBuilderAccounts();
+        loadBuilderDashboard();
+      } catch (err) {
+        builderOutput.innerHTML = `<div class="error">${err.message}</div>`;
+        builderStatus.textContent = 'Failed to load accounts';
+      }
     }
 
     function fmtUsd(n) {
@@ -742,6 +812,10 @@
 
       let html = '';
 
+      if (selectedBuilderLabel) {
+        html += `<p class="hint" style="margin-bottom:12px"><b>Account:</b> ${selectedBuilderLabel}</p>`;
+      }
+
       html += `<div class="stats-grid">`;
       html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${shortHex(code, 8)}</div><div class="stat-sub">${code}</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Taker fee (now)</div><div class="stat-value">${fees.builder_taker_fee_rate_bps ?? '—'} bps</div><div class="stat-sub">${fees.enabled ? 'Enabled' : 'Disabled'}</div></div>`;
@@ -817,14 +891,18 @@
     }
 
     async function loadBuilderDashboard() {
+      if (!selectedBuilderCode) {
+        await loadBuilderAccounts();
+      }
+      const codeQuery = `code=${encodeURIComponent(selectedBuilderCode)}`;
       builderRefreshBtn.disabled = true;
       builderStatus.textContent = 'Loading fees and trades…';
       builderOutput.innerHTML = '';
 
       try {
         const [feesRes, tradesRes] = await Promise.all([
-          fetch('/api/builder-fees', { headers: builderAuthHeaders() }),
-          fetch('/api/builder-trades?all=1', { headers: builderAuthHeaders() }),
+          fetch(`/api/builder-fees?${codeQuery}`, { headers: builderAuthHeaders() }),
+          fetch(`/api/builder-trades?all=1&${codeQuery}`, { headers: builderAuthHeaders() }),
         ]);
 
         const feesJson = await feesRes.json();
@@ -853,7 +931,7 @@
         renderBuilderDashboard(feesJson, tradesJson, pmVolume);
         const n = tradesJson.trades?.length ?? 0;
         const pages = tradesJson.pages ?? 1;
-        let status = `Updated ${new Date().toLocaleTimeString()} · ${n} matched trades`;
+        let status = `${selectedBuilderLabel || 'Builder'} · ${new Date().toLocaleTimeString()} · ${n} matched trades`;
         if (pages > 1) status += ` (${pages} API pages)`;
         if (tradesJson.hasMore) status += ' · more available — refresh again or raise page limit';
         builderStatus.textContent = status;

@@ -32,8 +32,64 @@ function builderHeaders(method, requestPath) {
   };
 }
 
+function normalizeBuilderCode(raw) {
+  const trimmed = String(raw ?? '').trim();
+  const hex = trimmed.startsWith('0x') ? trimmed : `0x${trimmed}`;
+  if (!/^0x[a-fA-F0-9]{64}$/.test(hex)) {
+    throw new Error('Invalid builder code (expected 0x + 64 hex chars)');
+  }
+  return hex;
+}
+
 function builderCode() {
-  return requireEnv('POLYMARKET_BUILDER_CODE');
+  return normalizeBuilderCode(requireEnv('POLYMARKET_BUILDER_CODE'));
+}
+
+function shortenBuilderCode(code) {
+  return `${code.slice(0, 10)}…${code.slice(-6)}`;
+}
+
+/** Primary + optional extra builder codes to track in the dashboard. */
+function listTrackedBuilders() {
+  const primaryLabel = process.env.POLYMARKET_BUILDER_LABEL?.trim() || 'Yeno (canonical)';
+  const primary = {
+    id: 'primary',
+    label: primaryLabel,
+    code: builderCode(),
+  };
+
+  const extraCodes = (process.env.POLYMARKET_EXTRA_BUILDER_CODES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const extraLabels = (process.env.POLYMARKET_EXTRA_BUILDER_LABELS || '')
+    .split('|')
+    .map((s) => s.trim());
+
+  const extras = extraCodes.map((raw, index) => {
+    const code = normalizeBuilderCode(raw);
+    return {
+      id: `extra-${index}`,
+      label: extraLabels[index] || shortenBuilderCode(code),
+      code,
+    };
+  });
+
+  const seen = new Set();
+  return [primary, ...extras].filter((entry) => {
+    const key = entry.code.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function resolveBuilderCode(requested) {
+  if (!requested) return builderCode();
+  const normalized = normalizeBuilderCode(requested);
+  const allowed = listTrackedBuilders().some((b) => b.code.toLowerCase() === normalized.toLowerCase());
+  if (!allowed) throw new Error('Builder code is not in tracked accounts');
+  return normalized;
 }
 
 async function clobGet(requestPath) {
@@ -49,8 +105,8 @@ async function clobGet(requestPath) {
   return JSON.parse(text);
 }
 
-async function fetchBuilderTrades({ market, cursor, limit = 300 } = {}) {
-  const params = new URLSearchParams({ builder_code: builderCode() });
+async function fetchBuilderTrades({ code, market, cursor, limit = 300 } = {}) {
+  const params = new URLSearchParams({ builder_code: resolveBuilderCode(code) });
   if (market) params.set('market', market);
   if (cursor) params.set('next_cursor', cursor);
 
@@ -64,13 +120,13 @@ async function fetchBuilderTrades({ market, cursor, limit = 300 } = {}) {
   };
 }
 
-async function fetchAllBuilderTrades({ market, maxPages = 100 } = {}) {
+async function fetchAllBuilderTrades({ code, market, maxPages = 100 } = {}) {
   const all = [];
   let cursor;
   let pages = 0;
 
   while (pages < maxPages) {
-    const page = await fetchBuilderTrades({ market, cursor });
+    const page = await fetchBuilderTrades({ code, market, cursor });
     all.push(...page.trades);
     pages += 1;
     if (!page.nextCursor) {
@@ -82,9 +138,9 @@ async function fetchAllBuilderTrades({ market, maxPages = 100 } = {}) {
   return { trades: all, pages, hasMore: true, nextCursor: cursor };
 }
 
-async function fetchBuilderFees() {
-  const code = builderCode();
-  const res = await fetch(`${CLOB_HOST}/fees/builder-fees/${code}`, {
+async function fetchBuilderFees(code) {
+  const resolved = resolveBuilderCode(code);
+  const res = await fetch(`${CLOB_HOST}/fees/builder-fees/${resolved}`, {
     signal: AbortSignal.timeout(15_000),
   });
   const text = await res.text();
@@ -96,6 +152,8 @@ async function fetchBuilderFees() {
 
 module.exports = {
   builderCode,
+  listTrackedBuilders,
+  resolveBuilderCode,
   fetchBuilderTrades,
   fetchAllBuilderTrades,
   fetchBuilderFees,
