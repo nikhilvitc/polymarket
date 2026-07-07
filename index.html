@@ -338,6 +338,11 @@
       color: #64748b;
     }
 
+    .builder-trades-pager {
+      margin: 12px 0;
+      align-items: center;
+    }
+
     .pager {
       display: flex;
       gap: 10px;
@@ -572,6 +577,8 @@
     let builderTradesPayload = null;
     let builderOfficialVolume = null;
     let builderFeeFilter = 'all';
+    const BUILDER_TRADES_PAGE_SIZE = 100;
+    let builderTradePage = 0;
 
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -646,6 +653,7 @@
       selectedBuilderCode = null;
       selectedBuilderLabel = '';
       builderTrades = [];
+      builderTradePage = 0;
       builderPasswordInput.value = '';
       builderOutput.innerHTML = '';
       showBuilderLogin();
@@ -690,6 +698,7 @@
           selectedBuilderCode = account.code;
           selectedBuilderLabel = account.label;
           builderFeeFilter = 'all';
+          builderTradePage = 0;
           renderBuilderAccountTabs();
           loadBuilderDashboard();
         });
@@ -843,6 +852,17 @@
 
     function setBuilderFeeFilter(mode) {
       builderFeeFilter = mode;
+      builderTradePage = 0;
+      if (builderFeesPayload && builderTradesPayload) {
+        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
+      }
+    }
+
+    function setBuilderTradePage(page) {
+      const allTrades = builderTradesPayload?.trades ?? [];
+      const filtered = filteredBuilderTrades(allTrades);
+      const totalPages = Math.max(1, Math.ceil(filtered.length / BUILDER_TRADES_PAGE_SIZE));
+      builderTradePage = Math.max(0, Math.min(page, totalPages - 1));
       if (builderFeesPayload && builderTradesPayload) {
         renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
       }
@@ -858,6 +878,11 @@
       builderTrades = allTrades;
       const summary = summarizeTrades(allTrades);
       const trades = filteredBuilderTrades(allTrades);
+      const totalPages = Math.max(1, Math.ceil(trades.length / BUILDER_TRADES_PAGE_SIZE));
+      if (builderTradePage >= totalPages) builderTradePage = totalPages - 1;
+      const pageStart = builderTradePage * BUILDER_TRADES_PAGE_SIZE;
+      const pageEnd = Math.min(pageStart + BUILDER_TRADES_PAGE_SIZE, trades.length);
+      const pageTrades = trades.slice(pageStart, pageEnd);
       const pmWeek = officialVolume?.WEEK;
       const pmMonth = officialVolume?.MONTH;
 
@@ -910,11 +935,17 @@
         return;
       }
 
+      html += `<div class="input-row builder-trades-pager">`;
+      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-prev ${builderTradePage === 0 ? 'disabled' : ''}>← Prev</button>`;
+      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-next ${builderTradePage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>`;
+      html += `<span class="pager">Showing ${pageStart + 1}–${pageEnd} of ${trades.length.toLocaleString()} · page ${builderTradePage + 1} / ${totalPages}</span>`;
+      html += `</div>`;
+
       html += `<div class="table-wrap"><table><thead><tr>`;
       html += `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th>Builder fee</th><th>Protocol fee</th><th>Market</th><th>Tx</th>`;
       html += `</tr></thead><tbody>`;
 
-      for (const t of trades) {
+      for (const t of pageTrades) {
         const era = tradeFeeEra(t);
         const rowCls = era === 'pre' ? 'row-pre-fee' : '';
         const eraBadge = era === 'pre'
@@ -941,10 +972,22 @@
       }
 
       html += `</tbody></table></div>`;
+
+      html += `<div class="input-row builder-trades-pager">`;
+      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-prev ${builderTradePage === 0 ? 'disabled' : ''}>← Prev</button>`;
+      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-next ${builderTradePage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>`;
+      html += `<span class="pager">${BUILDER_TRADES_PAGE_SIZE} per page</span>`;
+      html += `</div>`;
       builderOutput.innerHTML = html;
 
       builderOutput.querySelectorAll('[data-builder-filter]').forEach(btn => {
         btn.addEventListener('click', () => setBuilderFeeFilter(btn.dataset.builderFilter));
+      });
+      builderOutput.querySelectorAll('[data-builder-page-prev]').forEach(btn => {
+        btn.addEventListener('click', () => setBuilderTradePage(builderTradePage - 1));
+      });
+      builderOutput.querySelectorAll('[data-builder-page-next]').forEach(btn => {
+        btn.addEventListener('click', () => setBuilderTradePage(builderTradePage + 1));
       });
     }
 
@@ -955,6 +998,7 @@
       const codeQuery = `code=${encodeURIComponent(selectedBuilderCode)}`;
       builderRefreshBtn.disabled = true;
       builderStatus.textContent = 'Loading fees and trades…';
+      builderTradePage = 0;
       builderOutput.innerHTML = '';
 
       try {
