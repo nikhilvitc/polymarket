@@ -338,6 +338,37 @@
       color: #64748b;
     }
 
+    .event-row-live {
+      border-color: #166534;
+      background: linear-gradient(135deg, #0f1f17 0%, #161824 100%);
+    }
+
+    .event-row-live:hover { border-color: #4ade80; }
+
+    .event-row-upcoming {
+      border-color: #312e81;
+    }
+
+    .crypto-current-banner {
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border: 1px solid #166534;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0a1f14 0%, #161824 100%);
+    }
+
+    .crypto-current-banner h3 {
+      color: #86efac;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+
+    .crypto-current-banner p {
+      color: #94a3b8;
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
     .builder-trades-pager {
       margin: 12px 0;
       align-items: center;
@@ -569,12 +600,13 @@
   <div class="container">
     <h1>Polymarket Event Explorer</h1>
     <p class="subtitle">
-      Fetch condition IDs for sports events — moneyline, totals, spreads, BTTS, player props, corners, and more.
-      Use a <code>/market/...</code> URL for one market, or a sports/event URL to load all related markets.
+      Builder fees, sports condition IDs, and crypto auto-market windows (BTC/ETH Up or Down).
+      Use a <code>/market/...</code> or <code>/event/...</code> URL, or browse recurring crypto windows below.
     </p>
 
     <div class="tabs">
       <button class="tab active" data-tab="builder">Builder dashboard</button>
+      <button class="tab" data-tab="crypto">Crypto auto markets</button>
       <button class="tab" data-tab="lookup">Event lookup</button>
       <button class="tab" data-tab="browse">Browse World Cup</button>
     </div>
@@ -598,6 +630,31 @@
         </div>
         <div id="builderOutput"></div>
       </div>
+    </div>
+
+    <div id="panel-crypto" class="panel">
+      <div class="input-row">
+        <select id="cryptoSeriesSelect">
+          <option value="btc-up-or-down-5m">BTC Up/Down · 5 min</option>
+          <option value="eth-up-or-down-5m">ETH Up/Down · 5 min</option>
+          <option value="btc-up-or-down-15m">BTC Up/Down · 15 min</option>
+          <option value="eth-up-or-down-15m">ETH Up/Down · 15 min</option>
+          <option value="btc-up-or-down-daily">BTC Up/Down · daily</option>
+          <option value="eth-up-or-down-daily">ETH Up/Down · daily</option>
+        </select>
+        <button id="cryptoCurrentBtn" onclick="loadCurrentCryptoWindow()">Load current window</button>
+        <button id="cryptoListBtn" onclick="loadCryptoAutoMarkets(0)">Load windows</button>
+      </div>
+      <p class="hint">
+        Auto markets roll on a fixed schedule. <b>Load current window</b> picks the live 5/15-min or daily event;
+        each row shows the condition ID for integration. Read-only — does not affect YeNo trading or builder codes.
+      </p>
+      <div class="input-row">
+        <button class="copy-all-btn" style="margin:0" onclick="loadCryptoAutoMarkets(cryptoOffset - 20)" id="cryptoPrevBtn" disabled>← Prev</button>
+        <button class="copy-all-btn" style="margin:0" onclick="loadCryptoAutoMarkets(cryptoOffset + 20)" id="cryptoNextBtn" disabled>Next →</button>
+        <span class="pager" id="cryptoPager"></span>
+      </div>
+      <div id="cryptoOutput"></div>
     </div>
 
     <div id="panel-lookup" class="panel">
@@ -639,6 +696,12 @@
     const output = document.getElementById('output');
     const fetchBtn = document.getElementById('fetchBtn');
     let browseOffset = 0;
+    let cryptoOffset = 0;
+    const CRYPTO_PAGE_SIZE = 20;
+
+    const cryptoOutput = document.getElementById('cryptoOutput');
+    const cryptoListBtn = document.getElementById('cryptoListBtn');
+    const cryptoCurrentBtn = document.getElementById('cryptoCurrentBtn');
 
     const builderOutput = document.getElementById('builderOutput');
     const builderStatus = document.getElementById('builderStatus');
@@ -667,6 +730,7 @@
         tab.classList.add('active');
         document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
         if (tab.dataset.tab === 'builder' && builderIsUnlocked() && !builderTrades.length) loadBuilderDashboard();
+        if (tab.dataset.tab === 'crypto' && !cryptoOutput?.innerHTML) loadCryptoAutoMarkets(0);
       });
     });
 
@@ -1150,6 +1214,7 @@
         const u = new URL(trimmed);
         const parts = u.pathname.split('/').filter(Boolean);
         if (parts[0] === 'market' && parts[1]) return { kind: 'market', slug: parts[1] };
+        if (parts[0] === 'event' && parts[1]) return { kind: 'event', slug: parts[1] };
         if (parts.length > 0) return { kind: 'event', slug: parts[parts.length - 1] };
       } catch {
         const slug = trimmed.replace(/^\/|\/$/g, '').split('/').pop();
@@ -1345,7 +1410,7 @@
       return `<span class="badge ${cls}">${labels[t] || t}</span>`;
     }
 
-    function renderResult({ event, markets, eventSlug }) {
+    function renderResult({ event, markets, eventSlug }, targetEl = output) {
       const allConditionIds = markets.map(m => m.conditionId).filter(Boolean);
       let html = '';
 
@@ -1364,18 +1429,20 @@
 
       if (markets.length === 0) {
         html += `<div class="error">No markets found. Try a <code>/market/...</code> URL or check the slug.</div>`;
-        output.innerHTML = html;
+        targetEl.innerHTML = html;
         return;
       }
 
-      html += `<button class="copy-all-btn" id="copyAllBtn">Copy all condition IDs (${allConditionIds.length})</button>`;
+      html += `<button class="copy-all-btn" data-copy-all>Copy all condition IDs (${allConditionIds.length})</button>`;
       html += `<div class="markets-label">${markets.length} markets</div>`;
 
       for (const m of markets) {
         const outcomes = (() => { try { return JSON.parse(m.outcomes || '[]'); } catch { return []; } })();
         const prices = (() => { try { return JSON.parse(m.outcomePrices || '[]'); } catch { return []; } })();
         const tokenIds = (() => { try { return JSON.parse(m.clobTokenIds || '[]'); } catch { return []; } })();
-        const marketUrl = m.slug ? `https://polymarket.com/market/${m.slug}` : null;
+        const marketUrl = m.slug
+          ? `https://polymarket.com/market/${m.slug}`
+          : (eventSlug ? `https://polymarket.com/event/${eventSlug}` : null);
 
         html += `<div class="market-card">`;
         html += `<div class="market-head">`;
@@ -1425,14 +1492,123 @@
         html += `</div></div>`;
       }
 
-      output.innerHTML = html;
+      targetEl.innerHTML = html;
 
-      document.getElementById('copyAllBtn')?.addEventListener('click', function () {
+      targetEl.querySelector('[data-copy-all]')?.addEventListener('click', function () {
         copyText(allConditionIds.join('\n'), this);
       });
-      document.querySelectorAll('[data-copy]').forEach(btn => {
+      targetEl.querySelectorAll('[data-copy]').forEach(btn => {
         btn.addEventListener('click', () => copyText(btn.dataset.copy, btn));
       });
+    }
+
+    function cryptoWindowStatus(event) {
+      const now = Date.now();
+      const start = event.startDate ? new Date(event.startDate).getTime() : 0;
+      const end = event.endDate ? new Date(event.endDate).getTime() : Infinity;
+      if (event.closed) return { label: 'Closed', cls: 'closed' };
+      if (now >= start && now <= end) return { label: 'Live now', cls: 'live' };
+      if (now < start) return { label: 'Upcoming', cls: 'upcoming' };
+      return { label: 'Ended', cls: 'closed' };
+    }
+
+    function selectedCryptoSeries() {
+      return document.getElementById('cryptoSeriesSelect')?.value || 'btc-up-or-down-5m';
+    }
+
+    async function fetchCryptoEvents(series, limit = CRYPTO_PAGE_SIZE, offset = 0) {
+      return gammaGet(
+        `/events?series_slug=${encodeURIComponent(series)}&limit=${limit}&offset=${offset}&order=startDate&ascending=false`,
+      );
+    }
+
+    async function loadCurrentCryptoWindow() {
+      const series = selectedCryptoSeries();
+      cryptoCurrentBtn.disabled = true;
+      cryptoOutput.innerHTML = `<div class="status">Finding current window for <b>${series}</b>…</div>`;
+      try {
+        const events = await fetchCryptoEvents(series, 30, 0);
+        const now = Date.now();
+        const live = events.find((e) => {
+          const st = cryptoWindowStatus(e);
+          return st.cls === 'live';
+        });
+        const upcoming = events.find((e) => cryptoWindowStatus(e).cls === 'upcoming');
+        const current = live || upcoming || events[0];
+        if (!current) throw new Error('No active or upcoming window found for this series');
+
+        const st = cryptoWindowStatus(current);
+        const markets = current.markets?.length
+          ? current.markets
+          : [await fetchMarketBySlug(current.slug)].filter(Boolean);
+        renderResult({ event: current, markets, eventSlug: current.slug }, cryptoOutput);
+        const banner = document.createElement('div');
+        banner.className = 'crypto-current-banner';
+        banner.innerHTML = `<h3>${st.label}: ${fmt(current.title)}</h3><p>Series <code>${series}</code>${current.startDate ? ` · starts ${new Date(current.startDate).toLocaleString()}` : ''}${current.endDate ? ` · ends ${new Date(current.endDate).toLocaleString()}` : ''}</p>`;
+        cryptoOutput.insertBefore(banner, cryptoOutput.firstChild);
+      } catch (err) {
+        cryptoOutput.innerHTML = `<div class="error">${err.message}</div>`;
+      } finally {
+        cryptoCurrentBtn.disabled = false;
+      }
+    }
+
+    async function openCryptoEvent(slug) {
+      cryptoOutput.innerHTML = `<div class="status">Loading <b>${slug}</b>…</div>`;
+      try {
+        const event = await fetchEventBySlug(slug);
+        if (!event) throw new Error(`Event not found: ${slug}`);
+        const markets = event.markets?.length
+          ? event.markets
+          : [await fetchMarketBySlug(slug)].filter(Boolean);
+        renderResult({ event, markets, eventSlug: slug }, cryptoOutput);
+      } catch (err) {
+        cryptoOutput.innerHTML = `<div class="error">${err.message}</div>`;
+      }
+    }
+
+    async function loadCryptoAutoMarkets(offset) {
+      cryptoOffset = Math.max(0, offset);
+      const series = selectedCryptoSeries();
+      cryptoListBtn.disabled = true;
+      cryptoOutput.innerHTML = `<div class="status">Loading ${series} windows…</div>`;
+
+      try {
+        const events = await fetchCryptoEvents(series, CRYPTO_PAGE_SIZE, cryptoOffset);
+        document.getElementById('cryptoPrevBtn').disabled = cryptoOffset === 0;
+        document.getElementById('cryptoNextBtn').disabled = events.length < CRYPTO_PAGE_SIZE;
+        document.getElementById('cryptoPager').textContent = events.length
+          ? `${cryptoOffset + 1}–${cryptoOffset + events.length} · ${series}`
+          : 'No windows';
+
+        if (!events.length) {
+          cryptoOutput.innerHTML = `<div class="status">No windows in this series.</div>`;
+          return;
+        }
+
+        let html = `<div class="events-list">`;
+        for (const e of events) {
+          const st = cryptoWindowStatus(e);
+          const rowCls = st.cls === 'live' ? ' event-row-live' : st.cls === 'upcoming' ? ' event-row-upcoming' : '';
+          const m = (e.markets ?? [])[0];
+          const cond = m?.conditionId ? shortHex(m.conditionId, 8) : '—';
+          html += `<div class="event-row${rowCls}" data-crypto-slug="${e.slug}">
+            <div class="event-row-title">${fmt(e.title)} <span class="badge${st.cls === 'closed' ? ' closed' : ''}">${st.label}</span></div>
+            <div class="event-row-meta">${e.slug}${m?.conditionId ? ` · ${cond}` : ''}${e.endDate ? ` · ends ${new Date(e.endDate).toLocaleString()}` : ''}</div>
+          </div>`;
+        }
+        html += `</div>`;
+        html += `<p class="hint" style="margin-top:12px">Click a row for full condition ID, CLOB tokens, and live prices.</p>`;
+        cryptoOutput.innerHTML = html;
+
+        cryptoOutput.querySelectorAll('[data-crypto-slug]').forEach((row) => {
+          row.addEventListener('click', () => openCryptoEvent(row.dataset.cryptoSlug));
+        });
+      } catch (err) {
+        cryptoOutput.innerHTML = `<div class="error">${err.message}</div>`;
+      } finally {
+        cryptoListBtn.disabled = false;
+      }
     }
 
     async function fetchFromInput() {
@@ -1507,7 +1683,7 @@
         browseOutput.querySelectorAll('.event-row').forEach(row => {
           row.addEventListener('click', () => {
             document.querySelector('.tab[data-tab="lookup"]').click();
-            input.value = `https://polymarket.com/sports/world-cup/${row.dataset.slug}`;
+            input.value = `https://polymarket.com/event/${row.dataset.slug}`;
             fetchFromInput();
           });
         });
@@ -1517,6 +1693,11 @@
         browseBtn.disabled = false;
       }
     }
+
+    document.getElementById('cryptoSeriesSelect')?.addEventListener('change', () => {
+      cryptoOffset = 0;
+      loadCryptoAutoMarkets(0);
+    });
   </script>
 </body>
 </html>
