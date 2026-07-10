@@ -195,6 +195,13 @@
       color: #e0e7ff;
     }
 
+    .filter-row select.day-select {
+      flex: 0 1 auto;
+      min-width: 160px;
+      font-size: 0.78rem;
+      padding: 6px 12px;
+    }
+
     tr.row-pre-fee td { opacity: 0.85; }
     tr.row-pre-fee td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
 
@@ -720,6 +727,7 @@
     let builderTradesPayload = null;
     let builderOfficialVolume = null;
     let builderFeeFilter = 'all';
+    let builderDayFilter = 'all';
     const BUILDER_TRADES_PAGE_SIZE = 100;
     let builderTradePage = 0;
 
@@ -842,6 +850,7 @@
           selectedBuilderCode = account.code;
           selectedBuilderLabel = account.label;
           builderFeeFilter = 'all';
+          builderDayFilter = 'all';
           builderTradePage = 0;
           renderBuilderAccountTabs();
           loadBuilderDashboard();
@@ -988,14 +997,69 @@
       }
     }
 
+    function tradeDayKey(iso) {
+      if (!iso) return null;
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return null;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function todayDayKey() {
+      return tradeDayKey(new Date().toISOString());
+    }
+
+    function yesterdayDayKey() {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return tradeDayKey(d.toISOString());
+    }
+
+    function formatDayFilterLabel(dayKey) {
+      const today = todayDayKey();
+      const yesterday = yesterdayDayKey();
+      if (dayKey === today) return 'Today';
+      if (dayKey === yesterday) return 'Yesterday';
+      const [y, m, day] = dayKey.split('-').map(Number);
+      return new Date(y, m - 1, day).toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+    }
+
+    function dayCountsFromTrades(trades) {
+      const counts = new Map();
+      for (const t of trades) {
+        const key = tradeDayKey(t.createdAt);
+        if (!key) continue;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      return [...counts.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+    }
+
     function filteredBuilderTrades(trades) {
-      if (builderFeeFilter === 'pre') return trades.filter(t => !hasBuilderFee(t));
-      if (builderFeeFilter === 'post') return trades.filter(t => hasBuilderFee(t));
-      return trades;
+      let out = trades;
+      if (builderFeeFilter === 'pre') out = out.filter(t => !hasBuilderFee(t));
+      else if (builderFeeFilter === 'post') out = out.filter(t => hasBuilderFee(t));
+      if (builderDayFilter !== 'all') {
+        out = out.filter(t => tradeDayKey(t.createdAt) === builderDayFilter);
+      }
+      return out;
     }
 
     function setBuilderFeeFilter(mode) {
       builderFeeFilter = mode;
+      builderTradePage = 0;
+      if (builderFeesPayload && builderTradesPayload) {
+        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
+      }
+    }
+
+    function setBuilderDayFilter(day) {
+      builderDayFilter = day || 'all';
       builderTradePage = 0;
       if (builderFeesPayload && builderTradesPayload) {
         renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
@@ -1080,12 +1144,36 @@
       }
       html += `</div>`;
 
+      const dayCounts = dayCountsFromTrades(allTrades);
+      const todayKey = todayDayKey();
+      const yesterdayKey = yesterdayDayKey();
+      const countForDay = (key) => dayCounts.find(([d]) => d === key)?.[1] ?? 0;
+      html += `<div class="filter-row">`;
+      html += `<span class="status" style="margin:0">Day:</span>`;
+      html += `<button type="button" class="filter-btn${builderDayFilter === 'all' ? ' active' : ''}" data-builder-day="all">All days (${summary.count})</button>`;
+      for (const [key, label] of [[todayKey, 'Today'], [yesterdayKey, 'Yesterday']]) {
+        const count = countForDay(key);
+        if (!count) continue;
+        const active = builderDayFilter === key ? ' active' : '';
+        html += `<button type="button" class="filter-btn${active}" data-builder-day="${key}">${label} (${count})</button>`;
+      }
+      const otherDays = dayCounts.filter(([d]) => d !== todayKey && d !== yesterdayKey);
+      if (otherDays.length) {
+        const selectActive = builderDayFilter !== 'all' && builderDayFilter !== todayKey && builderDayFilter !== yesterdayKey;
+        html += `<select class="day-select" data-builder-day-select>`;
+        html += `<option value="" disabled${selectActive ? '' : ' selected'} hidden>More days…</option>`;
+        for (const [dayKey, count] of otherDays) {
+          const selected = builderDayFilter === dayKey ? ' selected' : '';
+          html += `<option value="${dayKey}"${selected}>${formatDayFilterLabel(dayKey)} (${count})</option>`;
+        }
+        html += `</select>`;
+      }
+      html += `</div>`;
+
       if (!trades.length) {
         html += `<div class="status">No trades in this filter.</div>`;
         builderOutput.innerHTML = html;
-        builderOutput.querySelectorAll('[data-builder-filter]').forEach(btn => {
-          btn.addEventListener('click', () => setBuilderFeeFilter(btn.dataset.builderFilter));
-        });
+        bindBuilderDashboardFilters();
         return;
       }
 
@@ -1095,7 +1183,10 @@
       html += `<span class="pager">Showing ${pageStart + 1}–${pageEnd} of ${trades.length.toLocaleString()} · page ${builderTradePage + 1} / ${totalPages}</span>`;
       html += `</div>`;
 
-      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total: <b>${fmtUsd(trades.reduce((s, t) => s + Number(t.builderFee || 0), 0))}</b> · All time: <b>${fmtUsd(summary.builderFees)}</b></p>`;
+      const filterFeeTotal = trades.reduce((s, t) => s + Number(t.builderFee || 0), 0);
+      const filterVolTotal = trades.reduce((s, t) => s + Number(t.sizeUsdc || 0), 0);
+      const dayLabel = builderDayFilter === 'all' ? '' : ` · ${formatDayFilterLabel(builderDayFilter)}`;
+      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total${dayLabel}: <b>${fmtUsd(filterFeeTotal)}</b> fees · <b>${fmtUsd(filterVolTotal)}</b> USDC · All time: <b>${fmtUsd(summary.builderFees)}</b></p>`;
 
       html += `<div class="table-wrap"><table><thead><tr>`;
       html += `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th class="col-your-fee">Your fee</th><th>PM protocol fee</th><th>Market</th><th>Tx</th>`;
@@ -1137,14 +1228,24 @@
       html += `</div>`;
       builderOutput.innerHTML = html;
 
-      builderOutput.querySelectorAll('[data-builder-filter]').forEach(btn => {
-        btn.addEventListener('click', () => setBuilderFeeFilter(btn.dataset.builderFilter));
-      });
+      bindBuilderDashboardFilters();
       builderOutput.querySelectorAll('[data-builder-page-prev]').forEach(btn => {
         btn.addEventListener('click', () => setBuilderTradePage(builderTradePage - 1));
       });
       builderOutput.querySelectorAll('[data-builder-page-next]').forEach(btn => {
         btn.addEventListener('click', () => setBuilderTradePage(builderTradePage + 1));
+      });
+    }
+
+    function bindBuilderDashboardFilters() {
+      builderOutput.querySelectorAll('[data-builder-filter]').forEach(btn => {
+        btn.addEventListener('click', () => setBuilderFeeFilter(btn.dataset.builderFilter));
+      });
+      builderOutput.querySelectorAll('[data-builder-day]').forEach(btn => {
+        btn.addEventListener('click', () => setBuilderDayFilter(btn.dataset.builderDay));
+      });
+      builderOutput.querySelector('[data-builder-day-select]')?.addEventListener('change', (e) => {
+        if (e.target.value) setBuilderDayFilter(e.target.value);
       });
     }
 
