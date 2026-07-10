@@ -728,6 +728,12 @@
     let builderOfficialVolume = null;
     let builderFeeFilter = 'all';
     let builderDayFilter = 'all';
+    let builderDayTz = 'utc';
+    const BUILDER_DAY_TZ = {
+      utc: { iana: 'UTC', label: 'UTC' },
+      ist: { iana: 'Asia/Kolkata', label: 'IST' },
+      local: { iana: null, label: 'Local' },
+    };
     const BUILDER_TRADES_PAGE_SIZE = 100;
     let builderTradePage = 0;
 
@@ -997,43 +1003,51 @@
       }
     }
 
-    function tradeDayKey(iso) {
+    function tradeDayKey(iso, tz = builderDayTz) {
       if (!iso) return null;
       const d = new Date(iso);
       if (Number.isNaN(d.getTime())) return null;
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
+      const opts = { year: 'numeric', month: '2-digit', day: '2-digit' };
+      const iana = BUILDER_DAY_TZ[tz]?.iana;
+      if (iana) opts.timeZone = iana;
+      return new Intl.DateTimeFormat('en-CA', opts).format(d);
     }
 
-    function todayDayKey() {
-      return tradeDayKey(new Date().toISOString());
+    function builderDayTzLabel(tz = builderDayTz) {
+      return BUILDER_DAY_TZ[tz]?.label || String(tz).toUpperCase();
     }
 
-    function yesterdayDayKey() {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      return tradeDayKey(d.toISOString());
+    function offsetDayKey(dayKey, delta, tz = builderDayTz) {
+      const [y, m, day] = dayKey.split('-').map(Number);
+      const anchor = new Date(Date.UTC(y, m - 1, day, 12));
+      anchor.setUTCDate(anchor.getUTCDate() + delta);
+      return tradeDayKey(anchor.toISOString(), tz);
     }
 
-    function formatDayFilterLabel(dayKey) {
-      const today = todayDayKey();
-      const yesterday = yesterdayDayKey();
+    function todayDayKey(tz = builderDayTz) {
+      return tradeDayKey(new Date().toISOString(), tz);
+    }
+
+    function yesterdayDayKey(tz = builderDayTz) {
+      return offsetDayKey(todayDayKey(tz), -1, tz);
+    }
+
+    function formatDayFilterLabel(dayKey, tz = builderDayTz) {
+      const today = todayDayKey(tz);
+      const yesterday = yesterdayDayKey(tz);
       if (dayKey === today) return 'Today';
       if (dayKey === yesterday) return 'Yesterday';
       const [y, m, day] = dayKey.split('-').map(Number);
-      return new Date(y, m - 1, day).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
+      const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+      const iana = BUILDER_DAY_TZ[tz]?.iana;
+      if (iana) opts.timeZone = iana;
+      return new Date(Date.UTC(y, m - 1, day, 12)).toLocaleDateString(undefined, opts);
     }
 
-    function dayCountsFromTrades(trades) {
+    function dayCountsFromTrades(trades, tz = builderDayTz) {
       const counts = new Map();
       for (const t of trades) {
-        const key = tradeDayKey(t.createdAt);
+        const key = tradeDayKey(t.createdAt, tz);
         if (!key) continue;
         counts.set(key, (counts.get(key) || 0) + 1);
       }
@@ -1066,6 +1080,16 @@
       }
     }
 
+    function setBuilderDayTz(tz) {
+      if (!BUILDER_DAY_TZ[tz] || builderDayTz === tz) return;
+      builderDayTz = tz;
+      builderDayFilter = 'all';
+      builderTradePage = 0;
+      if (builderFeesPayload && builderTradesPayload) {
+        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
+      }
+    }
+
     function setBuilderTradePage(page) {
       const allTrades = builderTradesPayload?.trades ?? [];
       const filtered = filteredBuilderTrades(allTrades);
@@ -1091,7 +1115,9 @@
         : allTrades.filter(t => tradeDayKey(t.createdAt) === builderDayFilter);
       const feeScopeSummary = summarizeTrades(dayScopedTrades);
       const displaySummary = builderDayFilter === 'all' ? allSummary : summarizeTrades(trades);
-      const scopeLabel = builderDayFilter === 'all' ? null : formatDayFilterLabel(builderDayFilter);
+      const scopeLabel = builderDayFilter === 'all'
+        ? null
+        : `${formatDayFilterLabel(builderDayFilter)} · ${builderDayTzLabel()}`;
       const totalPages = Math.max(1, Math.ceil(trades.length / BUILDER_TRADES_PAGE_SIZE));
       if (builderTradePage >= totalPages) builderTradePage = totalPages - 1;
       const pageStart = builderTradePage * BUILDER_TRADES_PAGE_SIZE;
@@ -1157,12 +1183,20 @@
       }
       html += `</div>`;
 
+      html += `<div class="filter-row">`;
+      html += `<span class="status" style="margin:0">Day TZ:</span>`;
+      for (const [tz, meta] of Object.entries(BUILDER_DAY_TZ)) {
+        const active = builderDayTz === tz ? ' active' : '';
+        html += `<button type="button" class="filter-btn${active}" data-builder-day-tz="${tz}">${meta.label}</button>`;
+      }
+      html += `</div>`;
+
       const dayCounts = dayCountsFromTrades(allTrades);
       const todayKey = todayDayKey();
       const yesterdayKey = yesterdayDayKey();
       const countForDay = (key) => dayCounts.find(([d]) => d === key)?.[1] ?? 0;
       html += `<div class="filter-row">`;
-      html += `<span class="status" style="margin:0">Day:</span>`;
+      html += `<span class="status" style="margin:0">Day (${builderDayTzLabel()}):</span>`;
       html += `<button type="button" class="filter-btn${builderDayFilter === 'all' ? ' active' : ''}" data-builder-day="all">All days (${allSummary.count})</button>`;
       for (const [key, label] of [[todayKey, 'Today'], [yesterdayKey, 'Yesterday']]) {
         const count = countForDay(key);
@@ -1259,6 +1293,9 @@
       });
       builderOutput.querySelector('[data-builder-day-select]')?.addEventListener('change', (e) => {
         if (e.target.value) setBuilderDayFilter(e.target.value);
+      });
+      builderOutput.querySelectorAll('[data-builder-day-tz]').forEach(btn => {
+        btn.addEventListener('click', () => setBuilderDayTz(btn.dataset.builderDayTz));
       });
     }
 
