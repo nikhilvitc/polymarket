@@ -1084,8 +1084,14 @@
       const code = feesPayload?.builderCode ?? fees.code ?? '—';
       const allTrades = tradesPayload?.trades ?? [];
       builderTrades = allTrades;
-      const summary = summarizeTrades(allTrades);
+      const allSummary = summarizeTrades(allTrades);
       const trades = filteredBuilderTrades(allTrades);
+      const dayScopedTrades = builderDayFilter === 'all'
+        ? allTrades
+        : allTrades.filter(t => tradeDayKey(t.createdAt) === builderDayFilter);
+      const feeScopeSummary = summarizeTrades(dayScopedTrades);
+      const displaySummary = builderDayFilter === 'all' ? allSummary : summarizeTrades(trades);
+      const scopeLabel = builderDayFilter === 'all' ? null : formatDayFilterLabel(builderDayFilter);
       const totalPages = Math.max(1, Math.ceil(trades.length / BUILDER_TRADES_PAGE_SIZE));
       if (builderTradePage >= totalPages) builderTradePage = totalPages - 1;
       const pageStart = builderTradePage * BUILDER_TRADES_PAGE_SIZE;
@@ -1100,44 +1106,51 @@
         html += `<p class="hint" style="margin-bottom:12px"><b>Account:</b> ${selectedBuilderLabel}</p>`;
       }
 
+      if (scopeLabel) {
+        html += `<p class="hint" style="margin-bottom:12px;padding:10px 12px;background:#1a1d2e;border:1px solid #312e81;border-radius:8px">Showing totals for <b>${scopeLabel}</b> · ${displaySummary.count.toLocaleString()} trades · ${fmtUsd(displaySummary.builderFees)} fees · ${fmtUsd(displaySummary.volumeUsdc)} USDC · All time: ${fmtUsd(allSummary.builderFees)} fees · ${allSummary.count.toLocaleString()} trades</p>`;
+      }
+
       const takerBps = fees.builder_taker_fee_rate_bps ?? 0;
       const makerBps = fees.builder_maker_fee_rate_bps ?? 0;
       const exampleTakerFee = estimateBuilderFeeUsdc(1000, takerBps);
       const exampleMakerFee = estimateBuilderFeeUsdc(1000, makerBps);
       const pageBuilderFees = pageTrades.reduce((s, t) => s + Number(t.builderFee || 0), 0);
+      const heroTitle = scopeLabel
+        ? `YeNo builder fees — ${scopeLabel}`
+        : 'YeNo builder fees — what you earn';
 
       html += `<div class="fees-hero">`;
-      html += `<div class="fees-hero-title">YeNo builder fees — what you earn</div>`;
+      html += `<div class="fees-hero-title">${heroTitle}</div>`;
       html += `<div class="fees-hero-item"><div class="fees-hero-label">Taker fee rate</div><div class="fees-hero-value">${formatBpsRate(takerBps)}</div><div class="fees-hero-sub">${fees.enabled ? 'Active · charged on taker fills' : 'Disabled on Polymarket'}</div></div>`;
-      html += `<div class="fees-hero-item"><div class="fees-hero-label">Maker fee rate</div><div class="fees-hero-value">${formatBpsRate(makerBps)}</div><div class="fees-hero-sub">${fmtUsd(summary.makerEarnings)} earned from ${summary.makerCount.toLocaleString()} maker fills</div></div>`;
-      html += `<div class="fees-hero-item fees-hero-total"><div class="fees-hero-label">Total fees earned</div><div class="fees-hero-value">${fmtUsd(summary.builderFees)}</div><div class="fees-hero-sub">${fmtUsd(summary.takerEarnings)} taker + ${fmtUsd(summary.makerEarnings)} maker · ${summary.postFeeCount.toLocaleString()} fee-charged trades</div></div>`;
+      html += `<div class="fees-hero-item"><div class="fees-hero-label">Maker fee rate</div><div class="fees-hero-value">${formatBpsRate(makerBps)}</div><div class="fees-hero-sub">${fmtUsd(displaySummary.makerEarnings)} earned from ${displaySummary.makerCount.toLocaleString()} maker fills${scopeLabel ? ` · ${scopeLabel}` : ''}</div></div>`;
+      html += `<div class="fees-hero-item fees-hero-total"><div class="fees-hero-label">${scopeLabel ? 'Fees earned' : 'Total fees earned'}</div><div class="fees-hero-value">${fmtUsd(displaySummary.builderFees)}</div><div class="fees-hero-sub">${fmtUsd(displaySummary.takerEarnings)} taker + ${fmtUsd(displaySummary.makerEarnings)} maker · ${displaySummary.postFeeCount.toLocaleString()} fee-charged trades${scopeLabel ? ` · ${scopeLabel}` : ''}</div></div>`;
       html += `<div class="fees-hero-item"><div class="fees-hero-label">Example per $1,000 vol</div><div class="fees-hero-value">${fmtUsd(exampleTakerFee)}</div><div class="fees-hero-sub">Taker ${fmtUsd(exampleTakerFee)} · Maker ${fmtUsd(exampleMakerFee)}</div></div>`;
       html += `</div>`;
 
       html += `<div class="stats-grid earnings-grid">`;
       html += `<div class="stat-card stat-card-earnings"><div class="stat-label">You earn (taker fee)</div><div class="stat-value">${formatBpsRate(takerBps)}</div><div class="stat-sub">${fees.enabled ? 'Active on taker fills' : 'Disabled'} · ${fmtUsd(exampleTakerFee)} per $1,000 USDC taker volume</div></div>`;
-      html += `<div class="stat-card stat-card-earnings"><div class="stat-label">Total builder fees earned</div><div class="stat-value">${fmtUsd(summary.builderFees)}</div><div class="stat-sub">Effective ${summary.effectiveRateBps.toFixed(2)} bps on ${fmtUsd(summary.volumeUsdc)} matched USDC</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Taker earnings</div><div class="stat-value">${fmtUsd(summary.takerEarnings)}</div><div class="stat-sub">${summary.takerCount.toLocaleString()} taker fills · ${fmtUsd(summary.takerVolumeUsdc)} vol</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Maker fee (you earn)</div><div class="stat-value">${formatBpsRate(makerBps)}</div><div class="stat-sub">${fmtUsd(summary.makerEarnings)} from ${summary.makerCount.toLocaleString()} maker fills</div></div>`;
+      html += `<div class="stat-card stat-card-earnings"><div class="stat-label">${scopeLabel ? 'Builder fees' : 'Total builder fees earned'}</div><div class="stat-value">${fmtUsd(displaySummary.builderFees)}</div><div class="stat-sub">Effective ${displaySummary.effectiveRateBps.toFixed(2)} bps on ${fmtUsd(displaySummary.volumeUsdc)} matched USDC${scopeLabel ? ` · ${scopeLabel}` : ''}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Taker earnings</div><div class="stat-value">${fmtUsd(displaySummary.takerEarnings)}</div><div class="stat-sub">${displaySummary.takerCount.toLocaleString()} taker fills · ${fmtUsd(displaySummary.takerVolumeUsdc)} vol</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Maker fee (you earn)</div><div class="stat-value">${formatBpsRate(makerBps)}</div><div class="stat-sub">${fmtUsd(displaySummary.makerEarnings)} from ${displaySummary.makerCount.toLocaleString()} maker fills</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${shortHex(code, 8)}</div><div class="stat-sub">${code}</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Share notional</div><div class="stat-value">${summary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div class="stat-sub">Sum of <code>size</code> (contracts) · matches Polymarket builder UI ~5–7k</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(summary.volumeUsdc)}</div><div class="stat-sub">Sum of <code>sizeUsdc</code> · actual \$ flow · ${summary.count} trades</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Share notional</div><div class="stat-value">${displaySummary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div class="stat-sub">Sum of <code>size</code> (contracts)${scopeLabel ? ` · ${scopeLabel}` : ' · matches Polymarket builder UI ~5–7k'}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(displaySummary.volumeUsdc)}</div><div class="stat-sub">Sum of <code>sizeUsdc</code> · actual \$ flow · ${displaySummary.count} trades</div></div>`;
       if (pmWeek != null || pmMonth != null) {
         html += `<div class="stat-card"><div class="stat-label">Polymarket official</div><div class="stat-value">${pmWeek != null ? pmWeek.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</div><div class="stat-sub">WEEK leaderboard volume${pmMonth != null ? ` · MONTH ${pmMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''} (share notional)</div></div>`;
       }
-      html += `<div class="stat-card"><div class="stat-label">With builder fee</div><div class="stat-value">${summary.postFeeCount}</div><div class="stat-sub">${fmtUsd(summary.postFeeVolumeUsdc)} USDC · ${fmtUsd(summary.builderFees)} fees</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Pre-fee era</div><div class="stat-value">${summary.preFeeCount}</div><div class="stat-sub">${fmtUsd(summary.preFeeVolumeUsdc)} USDC · attributed, $0 builder fee</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(summary.protocolFees)}</div><div class="stat-sub">Polymarket <code>feeUsdc</code> (not yours)</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">With builder fee</div><div class="stat-value">${displaySummary.postFeeCount}</div><div class="stat-sub">${fmtUsd(displaySummary.postFeeVolumeUsdc)} USDC · ${fmtUsd(displaySummary.builderFees)} fees</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Pre-fee era</div><div class="stat-value">${displaySummary.preFeeCount}</div><div class="stat-sub">${fmtUsd(displaySummary.preFeeVolumeUsdc)} USDC · attributed, $0 builder fee</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(displaySummary.protocolFees)}</div><div class="stat-sub">Polymarket <code>feeUsdc</code> (not yours)</div></div>`;
       html += `</div>`;
 
-      html += `<p class="hint"><b>Builder taker fee = what you earn.</b> Current rate is <b>${formatBpsRate(takerBps)}</b> on taker USDC notional (example: ${fmtUsd(exampleTakerFee)} per $1,000). <b>Polymarket builder volume is share notional</b> (contracts traded), not USDC. Your ~${summary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })} shares ≈ Polymarket leaderboard; ~${fmtUsd(summary.volumeUsdc)} is actual dollar flow. <b>Pre-fee</b> trades have <code>builderFee = 0</code>. Protocol <code>feeUsdc</code> is Polymarket's cut, not yours.</p>`;
+      html += `<p class="hint"><b>Builder taker fee = what you earn.</b> Current rate is <b>${formatBpsRate(takerBps)}</b> on taker USDC notional (example: ${fmtUsd(exampleTakerFee)} per $1,000). <b>Polymarket builder volume is share notional</b> (contracts traded), not USDC. Your ~${displaySummary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })} shares${scopeLabel ? ` for ${scopeLabel}` : ' ≈ Polymarket leaderboard'}; ~${fmtUsd(displaySummary.volumeUsdc)} is actual dollar flow. <b>Pre-fee</b> trades have <code>builderFee = 0</code>. Protocol <code>feeUsdc</code> is Polymarket's cut, not yours.${scopeLabel ? ` All-time: ${fmtUsd(allSummary.builderFees)} fees · ${allSummary.count.toLocaleString()} trades.` : ''}</p>`;
 
       html += `<div class="filter-row">`;
       html += `<span class="status" style="margin:0">Show:</span>`;
       for (const [mode, label, count] of [
-        ['all', 'All', summary.count],
-        ['post', 'Fee charged', summary.postFeeCount],
-        ['pre', 'Pre-fee ($0)', summary.preFeeCount],
+        ['all', 'All', feeScopeSummary.count],
+        ['post', 'Fee charged', feeScopeSummary.postFeeCount],
+        ['pre', 'Pre-fee ($0)', feeScopeSummary.preFeeCount],
       ]) {
         const active = builderFeeFilter === mode ? ' active' : '';
         html += `<button type="button" class="filter-btn${active}" data-builder-filter="${mode}">${label} (${count})</button>`;
@@ -1150,7 +1163,7 @@
       const countForDay = (key) => dayCounts.find(([d]) => d === key)?.[1] ?? 0;
       html += `<div class="filter-row">`;
       html += `<span class="status" style="margin:0">Day:</span>`;
-      html += `<button type="button" class="filter-btn${builderDayFilter === 'all' ? ' active' : ''}" data-builder-day="all">All days (${summary.count})</button>`;
+      html += `<button type="button" class="filter-btn${builderDayFilter === 'all' ? ' active' : ''}" data-builder-day="all">All days (${allSummary.count})</button>`;
       for (const [key, label] of [[todayKey, 'Today'], [yesterdayKey, 'Yesterday']]) {
         const count = countForDay(key);
         if (!count) continue;
@@ -1183,10 +1196,10 @@
       html += `<span class="pager">Showing ${pageStart + 1}–${pageEnd} of ${trades.length.toLocaleString()} · page ${builderTradePage + 1} / ${totalPages}</span>`;
       html += `</div>`;
 
-      const filterFeeTotal = trades.reduce((s, t) => s + Number(t.builderFee || 0), 0);
-      const filterVolTotal = trades.reduce((s, t) => s + Number(t.sizeUsdc || 0), 0);
-      const dayLabel = builderDayFilter === 'all' ? '' : ` · ${formatDayFilterLabel(builderDayFilter)}`;
-      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total${dayLabel}: <b>${fmtUsd(filterFeeTotal)}</b> fees · <b>${fmtUsd(filterVolTotal)}</b> USDC · All time: <b>${fmtUsd(summary.builderFees)}</b></p>`;
+      const filterFeeTotal = displaySummary.builderFees;
+      const filterVolTotal = displaySummary.volumeUsdc;
+      const dayLabel = scopeLabel ? ` · ${scopeLabel}` : '';
+      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total${dayLabel}: <b>${fmtUsd(filterFeeTotal)}</b> fees · <b>${fmtUsd(filterVolTotal)}</b> USDC · All time: <b>${fmtUsd(allSummary.builderFees)}</b></p>`;
 
       html += `<div class="table-wrap"><table><thead><tr>`;
       html += `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th class="col-your-fee">Your fee</th><th>PM protocol fee</th><th>Market</th><th>Tx</th>`;
