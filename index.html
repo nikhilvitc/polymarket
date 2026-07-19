@@ -3,227 +3,390 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Polymarket Event Explorer</title>
+  <meta name="color-scheme" content="dark" />
+  <title>Polymarket Explorer — Builder fees, crypto windows &amp; condition IDs</title>
+  <link rel="preconnect" href="https://gamma-api.polymarket.com" crossorigin />
+  <link rel="preconnect" href="https://data-api.polymarket.com" crossorigin />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #0d0f14;
-      color: #e2e8f0;
-      min-height: 100vh;
-      padding: 40px 20px;
+    :root {
+      --bg: #0a0c12;
+      --bg-soft: #0e1119;
+      --surface: #12151f;
+      --surface-2: #171b28;
+      --surface-3: #1d2233;
+      --border: #222738;
+      --border-strong: #313952;
+      --text: #e7ebf4;
+      --text-dim: #9aa4ba;
+      --text-faint: #5d6579;
+      --accent: #6366f1;
+      --accent-soft: #818cf8;
+      --accent-bg: rgba(99, 102, 241, 0.12);
+      --green: #34d399;
+      --green-dim: #166534;
+      --green-bg: rgba(52, 211, 153, 0.08);
+      --red: #f87171;
+      --amber: #fbbf24;
+      --violet: #c084fc;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      --mono: 'SF Mono', ui-monospace, 'Fira Code', Menlo, monospace;
     }
 
-    .container { max-width: 920px; margin: 0 auto; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scrollbar-gutter: stable; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background:
+        radial-gradient(1100px 500px at 15% -10%, rgba(99, 102, 241, 0.14), transparent 60%),
+        radial-gradient(900px 420px at 90% -20%, rgba(139, 92, 246, 0.10), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ---------- Header ---------- */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      background: rgba(10, 12, 18, 0.78);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+
+    .header-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 14px 20px 0;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
 
     h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #f8fafc;
-      margin-bottom: 6px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #f8fafc 30%, var(--accent-soft));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .subtitle {
-      color: #64748b;
-      font-size: 0.875rem;
-      margin-bottom: 24px;
+      color: var(--text-faint);
+      font-size: 0.8rem;
       line-height: 1.5;
     }
 
     .tabs {
       display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    .tabs::-webkit-scrollbar { display: none; }
 
     .tab {
-      background: #1e2130;
-      border: 1px solid #2d3148;
-      border-radius: 8px;
-      color: #94a3b8;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      color: var(--text-dim);
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 600;
-      padding: 8px 16px;
-      transition: all 0.15s;
+      padding: 10px 14px;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
     }
 
+    .tab:hover { color: var(--text); background: transparent; }
+
     .tab.active {
-      background: #312e81;
-      border-color: #6366f1;
-      color: #e0e7ff;
+      color: var(--accent-soft);
+      border-bottom-color: var(--accent);
     }
 
     .builder-account-tabs {
+      gap: 8px;
       margin-bottom: 16px;
       flex-wrap: wrap;
     }
 
     .builder-account-tabs .tab {
-      font-size: 0.8rem;
-      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      padding: 6px 14px;
+    }
+
+    .builder-account-tabs .tab.active {
+      background: var(--accent-bg);
+      border-color: var(--accent);
+      color: #e0e7ff;
     }
 
     .panel { display: none; }
-    .panel.active { display: block; }
+    .panel.active { display: block; animation: fadeIn 0.18s ease-out; }
 
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* ---------- Inputs & buttons ---------- */
     .input-row {
       display: flex;
       gap: 10px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       flex-wrap: wrap;
     }
 
-    input[type="text"], select {
+    input[type="text"], input[type="password"], select {
       flex: 1;
       min-width: 220px;
-      background: #1e2130;
-      border: 1px solid #2d3148;
-      border-radius: 8px;
-      color: #e2e8f0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
       font-size: 0.9rem;
-      padding: 12px 16px;
+      font-family: inherit;
+      padding: 11px 14px;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
-    input[type="text"]::placeholder { color: #4a5568; }
-    input[type="text"]:focus, select:focus { border-color: #6366f1; }
+    input::placeholder { color: var(--text-faint); }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+    }
+
+    select { cursor: pointer; }
 
     button {
-      background: #6366f1;
+      background: var(--accent);
       border: none;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       color: #fff;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-family: inherit;
+      font-size: 0.88rem;
       font-weight: 600;
-      padding: 12px 24px;
-      transition: background 0.2s;
+      padding: 11px 20px;
+      transition: background 0.15s, transform 0.1s;
       white-space: nowrap;
     }
 
     button:hover { background: #4f46e5; }
-    button:disabled { background: #3730a3; cursor: not-allowed; opacity: 0.6; }
+    button:active { transform: translateY(1px); }
+    button:disabled { background: #3730a3; cursor: not-allowed; opacity: 0.55; transform: none; }
+
+    .btn-ghost {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+    .btn-ghost:disabled { background: var(--surface); opacity: 0.4; }
 
     .hint {
-      color: #64748b;
+      color: var(--text-faint);
       font-size: 0.78rem;
-      margin-bottom: 24px;
-      line-height: 1.45;
+      margin-bottom: 20px;
+      line-height: 1.5;
     }
 
-    .status {
-      color: #94a3b8;
-      font-size: 0.875rem;
-      margin-bottom: 20px;
+    .hint code, .stat-sub code {
+      background: var(--surface-2);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: var(--mono);
+      font-size: 0.9em;
     }
+
+    .status { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 16px; }
 
     .error {
-      background: #1f1215;
-      border: 1px solid #7f1d1d;
-      border-radius: 8px;
+      background: rgba(248, 113, 113, 0.07);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      border-radius: var(--radius-sm);
       color: #fca5a5;
-      font-size: 0.875rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
       padding: 14px 16px;
       margin-bottom: 20px;
     }
 
-    .event-header {
-      background: #1a1d2e;
-      border: 1px solid #2d3148;
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-bottom: 24px;
-    }
-
-    .event-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #f1f5f9;
-      margin-bottom: 8px;
-    }
-
-    .event-meta {
-      color: #64748b;
-      font-size: 0.8rem;
+    /* ---------- Pagination ---------- */
+    .pagination {
       display: flex;
-      gap: 16px;
+      align-items: center;
+      gap: 4px;
       flex-wrap: wrap;
+      margin: 14px 0;
     }
 
-    .badge {
-      background: #1e3a5f;
-      border-radius: 4px;
-      color: #60a5fa;
-      font-size: 0.72rem;
+    .page-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.8rem;
       font-weight: 600;
+      min-width: 34px;
+      padding: 7px 10px;
+      text-align: center;
+    }
+
+    .page-btn:hover:not(:disabled):not(.active) {
+      background: var(--surface-3);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .page-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      cursor: default;
+    }
+
+    .page-btn:disabled { opacity: 0.35; cursor: not-allowed; background: var(--surface); }
+
+    .page-ellipsis { color: var(--text-faint); font-size: 0.8rem; padding: 0 4px; }
+
+    .page-info { color: var(--text-faint); font-size: 0.78rem; margin-left: 8px; }
+
+    .page-size-select {
+      flex: 0 0 auto;
+      min-width: 0;
+      font-size: 0.78rem;
+      padding: 7px 10px;
+      margin-left: auto;
+    }
+
+    /* ---------- Badges ---------- */
+    .badge {
+      background: rgba(96, 165, 250, 0.12);
+      border-radius: 5px;
+      color: #60a5fa;
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
       padding: 2px 8px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      vertical-align: middle;
     }
 
-    .badge.closed { background: #3b1f00; color: #fb923c; }
-    .badge.type-totals { background: #1a2e1a; color: #4ade80; }
-    .badge.type-spreads { background: #2e1a2e; color: #e879f9; }
-    .badge.type-btts { background: #2e2a1a; color: #fbbf24; }
-    .badge.fee-era-pre { background: #3b2f00; color: #fbbf24; }
-    .badge.fee-era-post { background: #1a2e1a; color: #4ade80; }
+    .badge.closed { background: rgba(251, 146, 60, 0.12); color: #fb923c; }
+    .badge.live { background: rgba(52, 211, 153, 0.14); color: var(--green); }
+    .badge.type-totals { background: rgba(74, 222, 128, 0.1); color: #4ade80; }
+    .badge.type-spreads { background: rgba(232, 121, 249, 0.1); color: #e879f9; }
+    .badge.type-btts { background: rgba(251, 191, 36, 0.1); color: var(--amber); }
+    .badge.fee-era-pre { background: rgba(251, 191, 36, 0.12); color: var(--amber); }
+    .badge.fee-era-post { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
 
+    /* ---------- Filters ---------- */
     .filter-row {
       display: flex;
       gap: 8px;
+      align-items: center;
       flex-wrap: wrap;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
+
+    .filter-label { color: var(--text-faint); font-size: 0.75rem; font-weight: 600; }
 
     .filter-btn {
-      background: #1e2130;
-      border: 1px solid #2d3148;
-      border-radius: 8px;
-      color: #94a3b8;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-dim);
       cursor: pointer;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 600;
-      padding: 6px 12px;
+      padding: 5px 13px;
     }
 
+    .filter-btn:hover:not(.active) { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }
+
     .filter-btn.active {
-      background: #312e81;
-      border-color: #6366f1;
+      background: var(--accent-bg);
+      border-color: var(--accent);
       color: #e0e7ff;
     }
 
     .filter-row select.day-select {
       flex: 0 1 auto;
-      min-width: 160px;
-      font-size: 0.78rem;
-      padding: 6px 12px;
+      min-width: 150px;
+      font-size: 0.76rem;
+      padding: 5px 12px;
+      border-radius: 999px;
     }
 
     tr.row-pre-fee td { opacity: 0.85; }
-    tr.row-pre-fee td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
+    tr.row-pre-fee td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+
+    /* ---------- Event header & market cards ---------- */
+    .event-header {
+      background: linear-gradient(160deg, var(--surface-2), var(--surface));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+
+    .event-title { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; }
+
+    .event-meta {
+      color: var(--text-faint);
+      font-size: 0.78rem;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
 
     .markets-label {
-      color: #94a3b8;
-      font-size: 0.8rem;
-      font-weight: 600;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       margin-bottom: 12px;
     }
 
     .market-card {
-      background: #161824;
-      border: 1px solid #252840;
-      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 16px 20px;
       margin-bottom: 10px;
-      transition: border-color 0.2s;
+      transition: border-color 0.15s;
+      content-visibility: auto;
+      contain-intrinsic-size: auto 160px;
     }
 
-    .market-card:hover { border-color: #4f46e5; }
+    .market-card:hover { border-color: var(--border-strong); }
 
     .market-head {
       display: flex;
@@ -233,331 +396,256 @@
       margin-bottom: 10px;
     }
 
-    .market-question {
-      font-size: 0.925rem;
-      font-weight: 600;
-      color: #e2e8f0;
-    }
+    .market-question { font-size: 0.92rem; font-weight: 600; }
 
     .market-fields { display: grid; gap: 6px; }
 
-    .field {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 0.8rem;
-    }
+    .field { display: flex; align-items: flex-start; gap: 10px; font-size: 0.8rem; }
 
     .field-label {
-      color: #4a5568;
+      color: var(--text-faint);
       font-weight: 600;
-      min-width: 110px;
+      min-width: 105px;
       flex-shrink: 0;
     }
 
     .field-value {
-      color: #94a3b8;
-      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 0.76rem;
       word-break: break-all;
+      line-height: 1.5;
     }
 
     .field-value.highlight {
       color: #a5b4fc;
-      background: #1e2050;
+      background: var(--accent-bg);
       border-radius: 4px;
       padding: 2px 8px;
     }
 
-    .copy-btn, .copy-all-btn, .link-btn {
+    .copy-btn, .link-btn {
       background: transparent;
-      border: 1px solid #2d3148;
-      border-radius: 4px;
-      color: #64748b;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text-faint);
       cursor: pointer;
       font-size: 0.7rem;
-      padding: 2px 8px;
-      transition: all 0.15s;
+      font-weight: 500;
+      padding: 2px 9px;
+      transition: all 0.12s;
       text-decoration: none;
       display: inline-block;
+      flex-shrink: 0;
     }
 
-    .copy-btn:hover, .copy-all-btn:hover, .link-btn:hover {
-      background: #2d3148;
-      color: #e2e8f0;
-    }
+    .copy-btn:hover, .link-btn:hover { background: var(--surface-3); color: var(--text); }
 
     .copy-all-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
       font-size: 0.8rem;
-      font-weight: 600;
       padding: 8px 18px;
-      margin-bottom: 16px;
-      border-radius: 8px;
+      margin-bottom: 14px;
     }
+    .copy-all-btn:hover { background: var(--surface-3); color: var(--text); }
 
-    .outcomes-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
+    .outcomes-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 
     .outcome-chip {
-      background: #1e2130;
-      border: 1px solid #2d3148;
-      border-radius: 20px;
-      color: #94a3b8;
-      font-size: 0.75rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-dim);
+      font-size: 0.74rem;
       padding: 3px 12px;
     }
 
     .price-chip {
-      background: #12291a;
-      border: 1px solid #166534;
-      border-radius: 20px;
-      color: #4ade80;
-      font-size: 0.75rem;
-      font-weight: 600;
+      background: var(--green-bg);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      border-radius: 999px;
+      color: var(--green);
+      font-size: 0.74rem;
+      font-weight: 700;
       padding: 3px 12px;
     }
 
+    /* ---------- Event list rows ---------- */
     .events-list { display: grid; gap: 8px; }
 
     .event-row {
-      background: #161824;
-      border: 1px solid #252840;
-      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
       padding: 12px 16px;
       cursor: pointer;
-      transition: border-color 0.15s;
+      transition: border-color 0.12s, background 0.12s;
     }
 
-    .event-row:hover { border-color: #6366f1; }
+    .event-row:hover { border-color: var(--accent); background: var(--surface-2); }
 
-    .event-row-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #e2e8f0;
-      margin-bottom: 4px;
-    }
-
-    .event-row-meta {
-      font-size: 0.75rem;
-      color: #64748b;
-    }
+    .event-row-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 4px; }
+    .event-row-meta { font-size: 0.74rem; color: var(--text-faint); font-family: var(--mono); }
 
     .event-row-live {
-      border-color: #166534;
-      background: linear-gradient(135deg, #0f1f17 0%, #161824 100%);
+      border-color: rgba(52, 211, 153, 0.4);
+      background: linear-gradient(135deg, rgba(16, 68, 44, 0.25), var(--surface));
     }
-
-    .event-row-live:hover { border-color: #4ade80; }
-
-    .event-row-upcoming {
-      border-color: #312e81;
-    }
+    .event-row-live:hover { border-color: var(--green); }
+    .event-row-upcoming { border-color: rgba(99, 102, 241, 0.4); }
 
     .crypto-current-banner {
       margin-bottom: 16px;
-      padding: 14px 16px;
-      border: 1px solid #166534;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #0a1f14 0%, #161824 100%);
+      padding: 14px 18px;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(11, 43, 28, 0.5), var(--surface));
     }
+    .crypto-current-banner h3 { color: #86efac; font-size: 0.95rem; margin-bottom: 6px; }
+    .crypto-current-banner p { color: var(--text-dim); font-size: 0.78rem; line-height: 1.5; }
 
-    .crypto-current-banner h3 {
-      color: #86efac;
-      font-size: 0.95rem;
-      margin-bottom: 6px;
-    }
-
-    .crypto-current-banner p {
-      color: #94a3b8;
-      font-size: 0.78rem;
-      line-height: 1.45;
-    }
-
-    .builder-trades-pager {
-      margin: 12px 0;
-      align-items: center;
-    }
-
-    .pager {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-top: 16px;
-    }
-
-    .pager span { color: #64748b; font-size: 0.8rem; }
-
+    /* ---------- Stats ---------- */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
     }
 
     .stat-card {
-      background: #161824;
-      border: 1px solid #252840;
-      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 14px 16px;
     }
 
     .stat-card-earnings {
-      border-color: #166534;
-      background: linear-gradient(135deg, #0f1f17 0%, #161824 100%);
+      border-color: rgba(52, 211, 153, 0.35);
+      background: linear-gradient(135deg, rgba(11, 43, 28, 0.35), var(--surface));
     }
+    .stat-card-earnings .stat-value { color: var(--green); }
 
-    .stat-card-earnings .stat-value {
-      color: #4ade80;
-    }
-
-    .earnings-grid {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    }
+    .earnings-grid { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
 
     .fees-hero {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-      padding: 16px 18px;
-      border: 1px solid #166534;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #0a1f14 0%, #12141f 55%, #161824 100%);
-      box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.08), 0 8px 24px rgba(0, 0, 0, 0.25);
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+      padding: 18px 20px;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(9, 38, 24, 0.55), var(--bg-soft) 55%, var(--surface));
+      box-shadow: var(--shadow);
     }
 
     .fees-hero-title {
       grid-column: 1 / -1;
       color: #86efac;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      margin-bottom: 2px;
     }
 
-    .fees-hero-item .fees-hero-label {
-      color: #64748b;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
+    .fees-hero-label {
+      color: var(--text-faint);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       margin-bottom: 4px;
     }
 
-    .fees-hero-item .fees-hero-value {
-      color: #4ade80;
+    .fees-hero-value {
+      color: var(--green);
       font-size: 1.35rem;
       font-weight: 800;
       line-height: 1.15;
+      font-variant-numeric: tabular-nums;
     }
 
-    .fees-hero-item .fees-hero-sub {
-      color: #94a3b8;
-      font-size: 0.72rem;
-      margin-top: 4px;
-    }
+    .fees-hero-sub { color: var(--text-dim); font-size: 0.72rem; margin-top: 4px; line-height: 1.45; }
+    .fees-hero-total .fees-hero-value { font-size: 1.65rem; }
 
-    .fees-hero-item.fees-hero-total .fees-hero-value {
-      font-size: 1.6rem;
-    }
-
-    th.col-your-fee, td.col-your-fee {
-      background: rgba(74, 222, 128, 0.06);
-    }
-
-    th.col-your-fee {
-      color: #86efac;
-    }
-
-    td.col-your-fee {
-      color: #4ade80;
-      font-weight: 700;
-    }
-
-    td.col-your-fee.fee-zero {
-      color: #64748b;
-      font-weight: 500;
-    }
+    th.col-your-fee, td.col-your-fee { background: rgba(52, 211, 153, 0.05); }
+    th.col-your-fee { color: #86efac; }
+    td.col-your-fee { color: var(--green); font-weight: 700; }
+    td.col-your-fee.fee-zero { color: var(--text-faint); font-weight: 500; }
 
     .page-fee-total {
       margin: 0 0 10px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      background: rgba(74, 222, 128, 0.08);
-      border: 1px solid rgba(74, 222, 128, 0.2);
+      padding: 9px 13px;
+      border-radius: var(--radius-sm);
+      background: var(--green-bg);
+      border: 1px solid rgba(52, 211, 153, 0.22);
       color: #cbd5e1;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
     }
-
-    .page-fee-total b {
-      color: #4ade80;
-    }
+    .page-fee-total b { color: var(--green); }
 
     .stat-label {
-      color: #64748b;
-      font-size: 0.72rem;
-      font-weight: 600;
+      color: var(--text-faint);
+      font-size: 0.68rem;
+      font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
       margin-bottom: 6px;
     }
 
     .stat-value {
-      color: #f1f5f9;
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: 700;
+      font-variant-numeric: tabular-nums;
     }
 
     .stat-sub {
-      color: #94a3b8;
-      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-size: 0.72rem;
       margin-top: 4px;
       word-break: break-all;
+      line-height: 1.45;
     }
 
+    /* ---------- Table ---------- */
     .table-wrap {
-      overflow-x: auto;
-      border: 1px solid #252840;
-      border-radius: 10px;
-      margin-bottom: 16px;
+      overflow: auto;
+      max-height: 70vh;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      background: var(--surface);
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.78rem;
-    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
 
     th, td {
-      padding: 10px 12px;
+      padding: 9px 12px;
       text-align: left;
-      border-bottom: 1px solid #252840;
+      border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
 
     th {
-      background: #12141f;
-      color: #94a3b8;
+      background: var(--bg-soft);
+      color: var(--text-dim);
       font-weight: 600;
       position: sticky;
       top: 0;
+      z-index: 1;
     }
 
-    td { color: #cbd5e1; }
+    td { color: #cbd5e1; font-variant-numeric: tabular-nums; }
+    tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.012); }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #1a1d2e; }
+    tbody tr:hover td { background: var(--surface-2); }
 
     .side-buy { color: #4ade80; font-weight: 600; }
-    .side-sell { color: #f87171; font-weight: 600; }
+    .side-sell { color: var(--red); font-weight: 600; }
 
-    .mono {
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 0.72rem;
-    }
+    .mono { font-family: var(--mono); font-size: 0.72rem; }
 
     .toolbar {
       display: flex;
@@ -566,76 +654,121 @@
       flex-wrap: wrap;
       margin-bottom: 16px;
     }
-
     .toolbar .status { margin: 0; }
 
+    /* ---------- Login ---------- */
     .login-card {
-      background: #161824;
-      border: 1px solid #252840;
-      border-radius: 12px;
-      padding: 24px;
-      max-width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+      max-width: 380px;
+      margin: 40px auto;
     }
 
-    .login-card h3 {
-      color: #f1f5f9;
-      font-size: 1rem;
-      margin-bottom: 8px;
+    .login-card h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .login-card p { color: var(--text-faint); font-size: 0.83rem; margin-bottom: 18px; }
+    .login-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .login-row input { flex: 1; min-width: 170px; }
+
+    /* ---------- Skeletons ---------- */
+    .skeleton {
+      position: relative;
+      overflow: hidden;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
     }
 
-    .login-card p {
-      color: #64748b;
-      font-size: 0.85rem;
-      margin-bottom: 16px;
+    .skeleton::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+      animation: shimmer 1.3s infinite;
     }
 
-    .login-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+    @keyframes shimmer {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(100%); }
     }
 
-    .login-row input {
-      flex: 1;
-      min-width: 180px;
+    .skeleton-row { height: 58px; margin-bottom: 8px; }
+    .skeleton-hero { height: 130px; margin-bottom: 14px; }
+    .skeleton-stats { height: 90px; margin-bottom: 18px; }
+    .skeleton-table { height: 380px; }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translate(-50%, 12px);
+      background: var(--surface-3);
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 600;
+      opacity: 0;
+      padding: 9px 20px;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 100;
     }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
     .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .header-inner { padding: 12px 14px 0; }
+      .container { padding: 0 14px 60px; }
+      .fees-hero, .event-header { padding: 14px 16px; }
+      .field-label { min-width: 88px; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Polymarket Event Explorer</h1>
-    <p class="subtitle">
-      Builder fees, sports condition IDs, and crypto auto-market windows (BTC/ETH Up or Down).
-      Use a <code>/market/...</code> or <code>/event/...</code> URL, or browse recurring crypto windows below.
-    </p>
-
-    <div class="tabs">
-      <button class="tab active" data-tab="builder">Builder dashboard</button>
-      <button class="tab" data-tab="crypto">Crypto auto markets</button>
-      <button class="tab" data-tab="lookup">Event lookup</button>
-      <button class="tab" data-tab="browse">Browse World Cup</button>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand-row">
+        <h1>Polymarket Explorer</h1>
+        <span class="subtitle">Builder fees · sports condition IDs · crypto auto-market windows</span>
+      </div>
+      <nav class="tabs" id="mainTabs">
+        <button class="tab active" data-tab="builder">Builder dashboard</button>
+        <button class="tab" data-tab="crypto">Crypto auto markets</button>
+        <button class="tab" data-tab="lookup">Event lookup</button>
+        <button class="tab" data-tab="browse">Browse World Cup</button>
+      </nav>
     </div>
+  </header>
 
+  <div class="container">
     <div id="panel-builder" class="panel active">
       <div id="builderLogin" class="login-card">
         <h3>Builder dashboard</h3>
         <p>Enter password to view fees and matched trades.</p>
         <div class="login-row">
           <input type="password" id="builderPasswordInput" placeholder="Password" autocomplete="current-password" />
-          <button type="button" id="builderLoginBtn" onclick="submitBuilderLogin()">Unlock</button>
+          <button type="button" id="builderLoginBtn">Unlock</button>
         </div>
         <p class="error hidden" id="builderLoginError" style="margin-top:12px;margin-bottom:0"></p>
       </div>
       <div id="builderApp" class="hidden">
         <div id="builderAccountTabs" class="tabs builder-account-tabs hidden"></div>
         <div class="toolbar">
-          <button id="builderRefreshBtn" onclick="loadBuilderDashboard()">Refresh</button>
-          <button type="button" onclick="logoutBuilderDashboard()">Lock</button>
+          <button id="builderRefreshBtn">Refresh</button>
+          <button type="button" class="btn-ghost" id="builderLockBtn">Lock</button>
           <span class="status" id="builderStatus">Loading builder data…</span>
         </div>
-        <div id="builderOutput"></div>
+        <div id="builderOutput">
+          <div id="builderSummary"></div>
+          <div id="builderControls"></div>
+          <div id="builderTable"></div>
+        </div>
       </div>
     </div>
 
@@ -649,18 +782,14 @@
           <option value="btc-up-or-down-daily">BTC Up/Down · daily</option>
           <option value="eth-up-or-down-daily">ETH Up/Down · daily</option>
         </select>
-        <button id="cryptoCurrentBtn" onclick="loadCurrentCryptoWindow()">Load current window</button>
-        <button id="cryptoListBtn" onclick="loadCryptoAutoMarkets(0)">Load windows</button>
+        <button id="cryptoCurrentBtn">Load current window</button>
+        <button id="cryptoListBtn" class="btn-ghost">Load windows</button>
       </div>
       <p class="hint">
         Auto markets roll on a fixed schedule. <b>Load current window</b> picks the live 5/15-min or daily event;
         each row shows the condition ID for integration. Read-only — does not affect YeNo trading or builder codes.
       </p>
-      <div class="input-row">
-        <button class="copy-all-btn" style="margin:0" onclick="loadCryptoAutoMarkets(cryptoOffset - 20)" id="cryptoPrevBtn" disabled>← Prev</button>
-        <button class="copy-all-btn" style="margin:0" onclick="loadCryptoAutoMarkets(cryptoOffset + 20)" id="cryptoNextBtn" disabled>Next →</button>
-        <span class="pager" id="cryptoPager"></span>
-      </div>
+      <div class="pagination" id="cryptoPagination"></div>
       <div id="cryptoOutput"></div>
     </div>
 
@@ -671,12 +800,13 @@
           id="urlInput"
           placeholder="https://polymarket.com/sports/world-cup/fifwc-nor-fra-2026-06-26"
         />
-        <button id="fetchBtn" onclick="fetchFromInput()">Fetch markets</button>
+        <button id="fetchBtn">Fetch markets</button>
       </div>
       <p class="hint">
         Also accepts <code>/market/fifwc-...-total-5pt5</code> URLs, raw slugs, or condition IDs (<code>0x...</code>).
         Gamma splits markets across sub-events — this tool also loads player props, first to score, corners, and more markets.
       </p>
+      <div id="output"></div>
     </div>
 
     <div id="panel-browse" class="panel">
@@ -684,41 +814,190 @@
         <select id="seriesSelect">
           <option value="soccer-fifwc">FIFA World Cup matches (soccer-fifwc)</option>
         </select>
-        <button id="browseBtn" onclick="browseEvents(0)">Load events</button>
+        <button id="browseBtn">Load events</button>
       </div>
-      <div class="input-row">
-        <button class="copy-all-btn" style="margin:0" onclick="browseEvents(browseOffset - 100)" id="prevBtn" disabled>← Prev</button>
-        <button class="copy-all-btn" style="margin:0" onclick="browseEvents(browseOffset + 100)" id="nextBtn" disabled>Next →</button>
-        <span class="pager" id="browsePager"></span>
-      </div>
+      <div class="pagination" id="browsePagination"></div>
       <div id="browseOutput"></div>
     </div>
-
-    <div id="output"></div>
   </div>
 
+  <div class="toast" id="toast" role="status"></div>
+
   <script>
+    'use strict';
+
+    /* ================= Utilities ================= */
     const GAMMA = 'https://gamma-api.polymarket.com';
-    const input = document.getElementById('urlInput');
-    const output = document.getElementById('output');
-    const fetchBtn = document.getElementById('fetchBtn');
-    let browseOffset = 0;
-    let cryptoOffset = 0;
-    const CRYPTO_PAGE_SIZE = 20;
+    const $ = (id) => document.getElementById(id);
 
-    const cryptoOutput = document.getElementById('cryptoOutput');
-    const cryptoListBtn = document.getElementById('cryptoListBtn');
-    const cryptoCurrentBtn = document.getElementById('cryptoCurrentBtn');
+    function esc(v) {
+      return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
 
-    const builderOutput = document.getElementById('builderOutput');
-    const builderStatus = document.getElementById('builderStatus');
-    const builderRefreshBtn = document.getElementById('builderRefreshBtn');
-    const builderLogin = document.getElementById('builderLogin');
-    const builderApp = document.getElementById('builderApp');
-    const builderPasswordInput = document.getElementById('builderPasswordInput');
-    const builderLoginError = document.getElementById('builderLoginError');
-    const builderAccountTabs = document.getElementById('builderAccountTabs');
+    function fmt(val) {
+      if (val == null || val === '') return '—';
+      return esc(val);
+    }
+
+    function fmtUsd(n) {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return '—';
+      return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleString();
+    }
+
+    function shortHex(v, n = 10) {
+      if (!v) return '—';
+      if (v.length <= n * 2 + 2) return v;
+      return `${v.slice(0, n)}…${v.slice(-6)}`;
+    }
+
+    function pct(val) {
+      if (val == null || val === '') return null;
+      const n = parseFloat(val);
+      if (isNaN(n)) return null;
+      return (n * 100).toFixed(1) + '%';
+    }
+
+    let toastTimer;
+    function showToast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+    }
+
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => (btn.textContent = orig), 1400);
+        }
+      });
+    }
+
+    /** Safe JSON parse for /api responses (avoids "Unexpected end of JSON input"). */
+    async function readJson(res) {
+      const text = await res.text();
+      if (!text) {
+        if (res.status === 404 || res.status === 405) {
+          throw new Error(
+            'Builder API not available here. Open the Vercel deploy URL, or run locally with `vercel dev` (a plain static server cannot serve /api).',
+          );
+        }
+        throw new Error(`Empty response from server (HTTP ${res.status}).`);
+      }
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error(
+          `Server returned non-JSON (HTTP ${res.status}). Use the Vercel URL or \`vercel dev\`.`,
+        );
+      }
+    }
+
+    /* Cached Gamma GET — avoids refetching when paging back and forth. */
+    const gammaCache = new Map();
+    const GAMMA_CACHE_TTL = 45_000;
+
+    async function gammaGet(path, { fresh = false } = {}) {
+      const hit = gammaCache.get(path);
+      if (!fresh && hit && Date.now() - hit.t < GAMMA_CACHE_TTL) return hit.data;
+      const res = await fetch(`${GAMMA}${path}`);
+      if (!res.ok) throw new Error(`Gamma API ${res.status}`);
+      const data = await res.json();
+      gammaCache.set(path, { t: Date.now(), data });
+      if (gammaCache.size > 300) {
+        gammaCache.delete(gammaCache.keys().next().value);
+      }
+      return data;
+    }
+
+    /* ---------- Numbered pagination ---------- */
+    function pageWindow(page, total) {
+      if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+      const out = [0];
+      const lo = Math.max(1, page - 1);
+      const hi = Math.min(total - 2, page + 1);
+      if (lo > 1) out.push('…');
+      for (let i = lo; i <= hi; i++) out.push(i);
+      if (hi < total - 2) out.push('…');
+      out.push(total - 1);
+      return out;
+    }
+
+    /**
+     * Numbered pager. Pages are 0-based internally, displayed 1-based.
+     * Emits buttons with data-pager="key" data-page="n" — handled by delegation.
+     */
+    function pagerHtml(key, page, totalPages, info = '') {
+      if (totalPages <= 1 && !info) return '';
+      let html = `<div class="pagination">`;
+      html += `<button type="button" class="page-btn" data-pager="${key}" data-page="${page - 1}" ${page <= 0 ? 'disabled' : ''}>‹ Prev</button>`;
+      for (const p of pageWindow(page, totalPages)) {
+        if (p === '…') {
+          html += `<span class="page-ellipsis">…</span>`;
+        } else {
+          html += `<button type="button" class="page-btn${p === page ? ' active' : ''}" data-pager="${key}" data-page="${p}">${p + 1}</button>`;
+        }
+      }
+      html += `<button type="button" class="page-btn" data-pager="${key}" data-page="${page + 1}" ${page >= totalPages - 1 ? 'disabled' : ''}>Next ›</button>`;
+      if (info) html += `<span class="page-info">${info}</span>`;
+      html += `</div>`;
+      return html;
+    }
+
+    /* Offset pager for endpoints without a total count (Gamma lists). */
+    function offsetPagerHtml(key, page, hasMore, info = '') {
+      let html = '';
+      html += `<button type="button" class="page-btn" data-pager="${key}" data-page="${page - 1}" ${page <= 0 ? 'disabled' : ''}>‹ Prev</button>`;
+      html += `<span class="page-btn active">${page + 1}</span>`;
+      html += `<button type="button" class="page-btn" data-pager="${key}" data-page="${page + 1}" ${hasMore ? '' : 'disabled'}>Next ›</button>`;
+      if (info) html += `<span class="page-info">${info}</span>`;
+      return html;
+    }
+
+    function skeletonList(n = 6) {
+      return Array.from({ length: n }, () => '<div class="skeleton skeleton-row"></div>').join('');
+    }
+
+    /* ================= Tabs ================= */
+    $('mainTabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('.tab');
+      if (!tab) return;
+      document.querySelectorAll('#mainTabs .tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      $(`panel-${tab.dataset.tab}`).classList.add('active');
+      if (tab.dataset.tab === 'builder' && builderIsUnlocked() && !builderTrades.length) loadBuilderDashboard();
+      if (tab.dataset.tab === 'crypto' && !cryptoState.loaded) loadCryptoAutoMarkets(0);
+    });
+
+    /* ================= Builder dashboard ================= */
+    const builderSummaryEl = $('builderSummary');
+    const builderControlsEl = $('builderControls');
+    const builderTableEl = $('builderTable');
+    const builderOutput = $('builderOutput');
+    const builderStatus = $('builderStatus');
+    const builderRefreshBtn = $('builderRefreshBtn');
+    const builderLogin = $('builderLogin');
+    const builderApp = $('builderApp');
+    const builderPasswordInput = $('builderPasswordInput');
+    const builderLoginError = $('builderLoginError');
+    const builderAccountTabs = $('builderAccountTabs');
     const BUILDER_AUTH_KEY = 'builderDashboardPassword';
+
     let builderAccounts = [];
     let selectedBuilderCode = null;
     let selectedBuilderLabel = '';
@@ -729,28 +1008,22 @@
     let builderFeeFilter = 'all';
     let builderDayFilter = 'all';
     let builderDayTz = 'utc';
+    let builderTradePage = 0;
+    let builderPageSize = 100;
+    let builderLoadSeq = 0;
+
     const BUILDER_DAY_TZ = {
       utc: { iana: 'UTC', label: 'UTC' },
       ist: { iana: 'Asia/Kolkata', label: 'IST' },
       local: { iana: null, label: 'Local' },
     };
-    const BUILDER_TRADES_PAGE_SIZE = 100;
-    let builderTradePage = 0;
 
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
-        if (tab.dataset.tab === 'builder' && builderIsUnlocked() && !builderTrades.length) loadBuilderDashboard();
-        if (tab.dataset.tab === 'crypto' && !cryptoOutput?.innerHTML) loadCryptoAutoMarkets(0);
-      });
-    });
-
-    builderPasswordInput?.addEventListener('keydown', e => {
+    builderPasswordInput.addEventListener('keydown', e => {
       if (e.key === 'Enter') submitBuilderLogin();
     });
+    $('builderLoginBtn').addEventListener('click', submitBuilderLogin);
+    builderRefreshBtn.addEventListener('click', () => loadBuilderDashboard());
+    $('builderLockBtn').addEventListener('click', logoutBuilderDashboard);
 
     function builderAuthPassword() {
       return sessionStorage.getItem(BUILDER_AUTH_KEY) || '';
@@ -787,7 +1060,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password }),
         });
-        const json = await res.json();
+        const json = await readJson(res);
         if (!res.ok || !json.success) {
           throw new Error(json.error || 'Wrong password');
         }
@@ -813,13 +1086,15 @@
       builderTrades = [];
       builderTradePage = 0;
       builderPasswordInput.value = '';
-      builderOutput.innerHTML = '';
+      builderSummaryEl.innerHTML = '';
+      builderControlsEl.innerHTML = '';
+      builderTableEl.innerHTML = '';
       showBuilderLogin();
     }
 
     async function loadBuilderAccounts() {
       const res = await fetch('/api/builder-accounts', { headers: builderAuthHeaders() });
-      const json = await res.json();
+      const json = await readJson(res);
       if (!res.ok || !json.success) {
         throw new Error(json.error || `Accounts API HTTP ${res.status}`);
       }
@@ -835,7 +1110,6 @@
     }
 
     function renderBuilderAccountTabs() {
-      if (!builderAccountTabs) return;
       if (builderAccounts.length <= 1) {
         builderAccountTabs.classList.add('hidden');
         builderAccountTabs.innerHTML = '';
@@ -845,24 +1119,25 @@
       builderAccountTabs.innerHTML = builderAccounts
         .map((account) => {
           const active = account.code.toLowerCase() === selectedBuilderCode?.toLowerCase() ? ' active' : '';
-          return `<button type="button" class="tab${active}" data-builder-account="${account.code}">${account.label}</button>`;
+          return `<button type="button" class="tab${active}" data-builder-account="${esc(account.code)}">${esc(account.label)}</button>`;
         })
         .join('');
-      builderAccountTabs.querySelectorAll('[data-builder-account]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const code = btn.dataset.builderAccount;
-          const account = builderAccounts.find((a) => a.code === code);
-          if (!account || code === selectedBuilderCode) return;
-          selectedBuilderCode = account.code;
-          selectedBuilderLabel = account.label;
-          builderFeeFilter = 'all';
-          builderDayFilter = 'all';
-          builderTradePage = 0;
-          renderBuilderAccountTabs();
-          loadBuilderDashboard();
-        });
-      });
     }
+
+    builderAccountTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-builder-account]');
+      if (!btn) return;
+      const code = btn.dataset.builderAccount;
+      const account = builderAccounts.find((a) => a.code === code);
+      if (!account || code === selectedBuilderCode) return;
+      selectedBuilderCode = account.code;
+      selectedBuilderLabel = account.label;
+      builderFeeFilter = 'all';
+      builderDayFilter = 'all';
+      builderTradePage = 0;
+      renderBuilderAccountTabs();
+      loadBuilderDashboard();
+    });
 
     async function initBuilderDashboard() {
       if (!builderIsUnlocked()) {
@@ -874,15 +1149,9 @@
         await loadBuilderAccounts();
         loadBuilderDashboard();
       } catch (err) {
-        builderOutput.innerHTML = `<div class="error">${err.message}</div>`;
+        builderSummaryEl.innerHTML = `<div class="error">${esc(err.message)}</div>`;
         builderStatus.textContent = 'Failed to load accounts';
       }
-    }
-
-    function fmtUsd(n) {
-      const v = Number(n);
-      if (!Number.isFinite(v)) return '—';
-      return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
     }
 
     function formatBpsRate(bps) {
@@ -898,23 +1167,8 @@
       return Math.round((usdc * bps) / 10_000 * 10_000) / 10_000;
     }
 
-    function fmtTime(iso) {
-      if (!iso) return '—';
-      return new Date(iso).toLocaleString();
-    }
-
-    function shortHex(v, n = 10) {
-      if (!v) return '—';
-      if (v.length <= n * 2 + 2) return v;
-      return `${v.slice(0, n)}…${v.slice(-6)}`;
-    }
-
     function hasBuilderFee(trade) {
       return Number(trade.builderFee || 0) > 0;
-    }
-
-    function tradeFeeEra(trade) {
-      return hasBuilderFee(trade) ? 'post' : 'pre';
     }
 
     function summarizeTrades(trades) {
@@ -952,7 +1206,7 @@
           takerVolumeUsdc += usdc;
           takerCount += 1;
         }
-        if (hasBuilderFee(t)) {
+        if (bf > 0) {
           postFeeCount += 1;
           postFeeVolumeUsdc += usdc;
         } else {
@@ -963,23 +1217,11 @@
       const effectiveRateBps =
         volumeUsdc > 0 ? Math.round((builderFees / volumeUsdc) * 10_000 * 100) / 100 : 0;
       return {
-        volumeUsdc,
-        shareNotional,
-        builderFees,
-        protocolFees,
-        takerEarnings,
-        makerEarnings,
-        takerVolumeUsdc,
-        makerVolumeUsdc,
-        takerCount,
-        makerCount,
-        effectiveRateBps,
-        bySide,
+        volumeUsdc, shareNotional, builderFees, protocolFees,
+        takerEarnings, makerEarnings, takerVolumeUsdc, makerVolumeUsdc,
+        takerCount, makerCount, effectiveRateBps, bySide,
         count: trades.length,
-        preFeeCount,
-        postFeeCount,
-        preFeeVolumeUsdc,
-        postFeeVolumeUsdc,
+        preFeeCount, postFeeCount, preFeeVolumeUsdc, postFeeVolumeUsdc,
       };
     }
 
@@ -987,22 +1229,24 @@
       if (!builderCode || builderCode === '—') return null;
       try {
         const code = builderCode.toLowerCase();
-        const out = {};
-        for (const period of ['WEEK', 'MONTH']) {
+        const periods = ['WEEK', 'MONTH'];
+        const results = await Promise.all(periods.map(async (period) => {
           const res = await fetch(`https://data-api.polymarket.com/v1/builders/volume?timePeriod=${period}`);
-          if (!res.ok) continue;
+          if (!res.ok) return null;
           const arr = await res.json();
-          const entries = (Array.isArray(arr) ? arr : []).filter(
-            e => (e.builderCode || '').toLowerCase() === code,
-          );
-          out[period] = entries.reduce((s, e) => s + Number(e.volume || 0), 0);
-        }
+          return (Array.isArray(arr) ? arr : [])
+            .filter(e => (e.builderCode || '').toLowerCase() === code)
+            .reduce((s, e) => s + Number(e.volume || 0), 0);
+        }));
+        const out = {};
+        periods.forEach((p, i) => { if (results[i] != null) out[p] = results[i]; });
         return out;
       } catch {
         return null;
       }
     }
 
+    /* ---------- Day helpers ---------- */
     function tradeDayKey(iso, tz = builderDayTz) {
       if (!iso) return null;
       const d = new Date(iso);
@@ -1033,10 +1277,8 @@
     }
 
     function formatDayFilterLabel(dayKey, tz = builderDayTz) {
-      const today = todayDayKey(tz);
-      const yesterday = yesterdayDayKey(tz);
-      if (dayKey === today) return 'Today';
-      if (dayKey === yesterday) return 'Yesterday';
+      if (dayKey === todayDayKey(tz)) return 'Today';
+      if (dayKey === yesterdayDayKey(tz)) return 'Yesterday';
       const [y, m, day] = dayKey.split('-').map(Number);
       const opts = { weekday: 'short', month: 'short', day: 'numeric' };
       const iana = BUILDER_DAY_TZ[tz]?.iana;
@@ -1064,83 +1306,43 @@
       return out;
     }
 
-    function setBuilderFeeFilter(mode) {
-      builderFeeFilter = mode;
-      builderTradePage = 0;
-      if (builderFeesPayload && builderTradesPayload) {
-        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
-      }
-    }
-
-    function setBuilderDayFilter(day) {
-      builderDayFilter = day || 'all';
-      builderTradePage = 0;
-      if (builderFeesPayload && builderTradesPayload) {
-        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
-      }
-    }
-
-    function setBuilderDayTz(tz) {
-      if (!BUILDER_DAY_TZ[tz] || builderDayTz === tz) return;
-      builderDayTz = tz;
-      builderDayFilter = 'all';
-      builderTradePage = 0;
-      if (builderFeesPayload && builderTradesPayload) {
-        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
-      }
-    }
-
-    function setBuilderTradePage(page) {
-      const allTrades = builderTradesPayload?.trades ?? [];
-      const filtered = filteredBuilderTrades(allTrades);
-      const totalPages = Math.max(1, Math.ceil(filtered.length / BUILDER_TRADES_PAGE_SIZE));
-      builderTradePage = Math.max(0, Math.min(page, totalPages - 1));
-      if (builderFeesPayload && builderTradesPayload) {
-        renderBuilderDashboard(builderFeesPayload, builderTradesPayload, builderOfficialVolume);
-      }
-    }
-
-    function renderBuilderDashboard(feesPayload, tradesPayload, officialVolume = builderOfficialVolume) {
+    /* ---------- Builder renders (split so paging only redraws the table) ---------- */
+    function renderBuilderDashboard(feesPayload = builderFeesPayload, tradesPayload = builderTradesPayload) {
       builderFeesPayload = feesPayload;
       builderTradesPayload = tradesPayload;
-      builderOfficialVolume = officialVolume;
-      const fees = feesPayload?.fees ?? {};
-      const code = feesPayload?.builderCode ?? fees.code ?? '—';
-      const allTrades = tradesPayload?.trades ?? [];
-      builderTrades = allTrades;
+      builderTrades = tradesPayload?.trades ?? [];
+      renderBuilderSummary();
+      renderBuilderControls();
+      renderBuilderTable();
+    }
+
+    function renderBuilderSummary() {
+      const fees = builderFeesPayload?.fees ?? {};
+      const code = builderFeesPayload?.builderCode ?? fees.code ?? '—';
+      const allTrades = builderTradesPayload?.trades ?? [];
       const allSummary = summarizeTrades(allTrades);
-      const trades = filteredBuilderTrades(allTrades);
-      const dayScopedTrades = builderDayFilter === 'all'
-        ? allTrades
-        : allTrades.filter(t => tradeDayKey(t.createdAt) === builderDayFilter);
-      const feeScopeSummary = summarizeTrades(dayScopedTrades);
-      const displaySummary = builderDayFilter === 'all' ? allSummary : summarizeTrades(trades);
+      const filtered = filteredBuilderTrades(allTrades);
+      const displaySummary = builderDayFilter === 'all' ? allSummary : summarizeTrades(filtered);
       const scopeLabel = builderDayFilter === 'all'
         ? null
         : `${formatDayFilterLabel(builderDayFilter)} · ${builderDayTzLabel()}`;
-      const totalPages = Math.max(1, Math.ceil(trades.length / BUILDER_TRADES_PAGE_SIZE));
-      if (builderTradePage >= totalPages) builderTradePage = totalPages - 1;
-      const pageStart = builderTradePage * BUILDER_TRADES_PAGE_SIZE;
-      const pageEnd = Math.min(pageStart + BUILDER_TRADES_PAGE_SIZE, trades.length);
-      const pageTrades = trades.slice(pageStart, pageEnd);
-      const pmWeek = officialVolume?.WEEK;
-      const pmMonth = officialVolume?.MONTH;
+      const pmWeek = builderOfficialVolume?.WEEK;
+      const pmMonth = builderOfficialVolume?.MONTH;
 
       let html = '';
 
       if (selectedBuilderLabel) {
-        html += `<p class="hint" style="margin-bottom:12px"><b>Account:</b> ${selectedBuilderLabel}</p>`;
+        html += `<p class="hint" style="margin-bottom:12px"><b>Account:</b> ${esc(selectedBuilderLabel)}</p>`;
       }
 
       if (scopeLabel) {
-        html += `<p class="hint" style="margin-bottom:12px;padding:10px 12px;background:#1a1d2e;border:1px solid #312e81;border-radius:8px">Showing totals for <b>${scopeLabel}</b> · ${displaySummary.count.toLocaleString()} trades · ${fmtUsd(displaySummary.builderFees)} fees · ${fmtUsd(displaySummary.volumeUsdc)} USDC · All time: ${fmtUsd(allSummary.builderFees)} fees · ${allSummary.count.toLocaleString()} trades</p>`;
+        html += `<p class="hint" style="margin-bottom:12px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--accent);border-radius:8px">Showing totals for <b>${scopeLabel}</b> · ${displaySummary.count.toLocaleString()} trades · ${fmtUsd(displaySummary.builderFees)} fees · ${fmtUsd(displaySummary.volumeUsdc)} USDC · All time: ${fmtUsd(allSummary.builderFees)} fees · ${allSummary.count.toLocaleString()} trades</p>`;
       }
 
       const takerBps = fees.builder_taker_fee_rate_bps ?? 0;
       const makerBps = fees.builder_maker_fee_rate_bps ?? 0;
       const exampleTakerFee = estimateBuilderFeeUsdc(1000, takerBps);
       const exampleMakerFee = estimateBuilderFeeUsdc(1000, makerBps);
-      const pageBuilderFees = pageTrades.reduce((s, t) => s + Number(t.builderFee || 0), 0);
       const heroTitle = scopeLabel
         ? `YeNo builder fees — ${scopeLabel}`
         : 'YeNo builder fees — what you earn';
@@ -1158,9 +1360,9 @@
       html += `<div class="stat-card stat-card-earnings"><div class="stat-label">${scopeLabel ? 'Builder fees' : 'Total builder fees earned'}</div><div class="stat-value">${fmtUsd(displaySummary.builderFees)}</div><div class="stat-sub">Effective ${displaySummary.effectiveRateBps.toFixed(2)} bps on ${fmtUsd(displaySummary.volumeUsdc)} matched USDC${scopeLabel ? ` · ${scopeLabel}` : ''}</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Taker earnings</div><div class="stat-value">${fmtUsd(displaySummary.takerEarnings)}</div><div class="stat-sub">${displaySummary.takerCount.toLocaleString()} taker fills · ${fmtUsd(displaySummary.takerVolumeUsdc)} vol</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Maker fee (you earn)</div><div class="stat-value">${formatBpsRate(makerBps)}</div><div class="stat-sub">${fmtUsd(displaySummary.makerEarnings)} from ${displaySummary.makerCount.toLocaleString()} maker fills</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${shortHex(code, 8)}</div><div class="stat-sub">${code}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${esc(shortHex(code, 8))}</div><div class="stat-sub">${esc(code)}</div></div>`;
       html += `<div class="stat-card"><div class="stat-label">Share notional</div><div class="stat-value">${displaySummary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div class="stat-sub">Sum of <code>size</code> (contracts)${scopeLabel ? ` · ${scopeLabel}` : ' · matches Polymarket builder UI ~5–7k'}</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(displaySummary.volumeUsdc)}</div><div class="stat-sub">Sum of <code>sizeUsdc</code> · actual \$ flow · ${displaySummary.count} trades</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(displaySummary.volumeUsdc)}</div><div class="stat-sub">Sum of <code>sizeUsdc</code> · actual $ flow · ${displaySummary.count} trades</div></div>`;
       if (pmWeek != null || pmMonth != null) {
         html += `<div class="stat-card"><div class="stat-label">Polymarket official</div><div class="stat-value">${pmWeek != null ? pmWeek.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</div><div class="stat-sub">WEEK leaderboard volume${pmMonth != null ? ` · MONTH ${pmMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''} (share notional)</div></div>`;
       }
@@ -1171,8 +1373,19 @@
 
       html += `<p class="hint"><b>Builder taker fee = what you earn.</b> Current rate is <b>${formatBpsRate(takerBps)}</b> on taker USDC notional (example: ${fmtUsd(exampleTakerFee)} per $1,000). <b>Polymarket builder volume is share notional</b> (contracts traded), not USDC. Your ~${displaySummary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })} shares${scopeLabel ? ` for ${scopeLabel}` : ' ≈ Polymarket leaderboard'}; ~${fmtUsd(displaySummary.volumeUsdc)} is actual dollar flow. <b>Pre-fee</b> trades have <code>builderFee = 0</code>. Protocol <code>feeUsdc</code> is Polymarket's cut, not yours.${scopeLabel ? ` All-time: ${fmtUsd(allSummary.builderFees)} fees · ${allSummary.count.toLocaleString()} trades.` : ''}</p>`;
 
-      html += `<div class="filter-row">`;
-      html += `<span class="status" style="margin:0">Show:</span>`;
+      builderSummaryEl.innerHTML = html;
+    }
+
+    function renderBuilderControls() {
+      const allTrades = builderTradesPayload?.trades ?? [];
+      const allSummary = summarizeTrades(allTrades);
+      const dayScopedTrades = builderDayFilter === 'all'
+        ? allTrades
+        : allTrades.filter(t => tradeDayKey(t.createdAt) === builderDayFilter);
+      const feeScopeSummary = summarizeTrades(dayScopedTrades);
+
+      let html = `<div class="filter-row">`;
+      html += `<span class="filter-label">Show:</span>`;
       for (const [mode, label, count] of [
         ['all', 'All', feeScopeSummary.count],
         ['post', 'Fee charged', feeScopeSummary.postFeeCount],
@@ -1184,7 +1397,7 @@
       html += `</div>`;
 
       html += `<div class="filter-row">`;
-      html += `<span class="status" style="margin:0">Day TZ:</span>`;
+      html += `<span class="filter-label">Day TZ:</span>`;
       for (const [tz, meta] of Object.entries(BUILDER_DAY_TZ)) {
         const active = builderDayTz === tz ? ' active' : '';
         html += `<button type="button" class="filter-btn${active}" data-builder-day-tz="${tz}">${meta.label}</button>`;
@@ -1196,7 +1409,7 @@
       const yesterdayKey = yesterdayDayKey();
       const countForDay = (key) => dayCounts.find(([d]) => d === key)?.[1] ?? 0;
       html += `<div class="filter-row">`;
-      html += `<span class="status" style="margin:0">Day (${builderDayTzLabel()}):</span>`;
+      html += `<span class="filter-label">Day (${builderDayTzLabel()}):</span>`;
       html += `<button type="button" class="filter-btn${builderDayFilter === 'all' ? ' active' : ''}" data-builder-day="all">All days (${allSummary.count})</button>`;
       for (const [key, label] of [[todayKey, 'Today'], [yesterdayKey, 'Yesterday']]) {
         const count = countForDay(key);
@@ -1217,145 +1430,197 @@
       }
       html += `</div>`;
 
+      builderControlsEl.innerHTML = html;
+    }
+
+    function renderBuilderTable() {
+      const allTrades = builderTradesPayload?.trades ?? [];
+      const allSummary = summarizeTrades(allTrades);
+      const trades = filteredBuilderTrades(allTrades);
+      const displaySummary = builderDayFilter === 'all' ? allSummary : summarizeTrades(trades);
+      const scopeLabel = builderDayFilter === 'all'
+        ? null
+        : `${formatDayFilterLabel(builderDayFilter)} · ${builderDayTzLabel()}`;
+
       if (!trades.length) {
-        html += `<div class="status">No trades in this filter.</div>`;
-        builderOutput.innerHTML = html;
-        bindBuilderDashboardFilters();
+        builderTableEl.innerHTML = `<div class="status">No trades in this filter.</div>`;
         return;
       }
 
-      html += `<div class="input-row builder-trades-pager">`;
-      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-prev ${builderTradePage === 0 ? 'disabled' : ''}>← Prev</button>`;
-      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-next ${builderTradePage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>`;
-      html += `<span class="pager">Showing ${pageStart + 1}–${pageEnd} of ${trades.length.toLocaleString()} · page ${builderTradePage + 1} / ${totalPages}</span>`;
-      html += `</div>`;
+      const totalPages = Math.max(1, Math.ceil(trades.length / builderPageSize));
+      if (builderTradePage >= totalPages) builderTradePage = totalPages - 1;
+      const pageStart = builderTradePage * builderPageSize;
+      const pageEnd = Math.min(pageStart + builderPageSize, trades.length);
+      const pageTrades = trades.slice(pageStart, pageEnd);
+      const pageBuilderFees = pageTrades.reduce((s, t) => s + Number(t.builderFee || 0), 0);
 
-      const filterFeeTotal = displaySummary.builderFees;
-      const filterVolTotal = displaySummary.volumeUsdc;
+      const topPager = pagerHtml(
+        'builder-trades',
+        builderTradePage,
+        totalPages,
+        `${(pageStart + 1).toLocaleString()}–${pageEnd.toLocaleString()} of ${trades.length.toLocaleString()} trades`,
+      ).replace('</div>', `<select class="page-size-select" data-builder-page-size>${[50, 100, 250, 500].map(n => `<option value="${n}"${n === builderPageSize ? ' selected' : ''}>${n} / page</option>`).join('')}</select></div>`);
+
       const dayLabel = scopeLabel ? ` · ${scopeLabel}` : '';
-      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total${dayLabel}: <b>${fmtUsd(filterFeeTotal)}</b> fees · <b>${fmtUsd(filterVolTotal)}</b> USDC · All time: <b>${fmtUsd(allSummary.builderFees)}</b></p>`;
+      let html = topPager;
+      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total${dayLabel}: <b>${fmtUsd(displaySummary.builderFees)}</b> fees · <b>${fmtUsd(displaySummary.volumeUsdc)}</b> USDC · All time: <b>${fmtUsd(allSummary.builderFees)}</b></p>`;
 
-      html += `<div class="table-wrap"><table><thead><tr>`;
-      html += `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th class="col-your-fee">Your fee</th><th>PM protocol fee</th><th>Market</th><th>Tx</th>`;
-      html += `</tr></thead><tbody>`;
-
+      const rows = [];
       for (const t of pageTrades) {
-        const era = tradeFeeEra(t);
-        const rowCls = era === 'pre' ? 'row-pre-fee' : '';
-        const eraBadge = era === 'pre'
+        const bf = Number(t.builderFee || 0);
+        const isPre = !(bf > 0);
+        const eraBadge = isPre
           ? '<span class="badge fee-era-pre">Pre-fee</span>'
           : '<span class="badge fee-era-post">Fee charged</span>';
         const sideCls = t.side === 'BUY' ? 'side-buy' : 'side-sell';
         const tx = t.transactionHash
-          ? `<a class="link-btn" href="https://polygonscan.com/tx/${t.transactionHash}" target="_blank" rel="noopener">${shortHex(t.transactionHash, 6)}</a>`
+          ? `<a class="link-btn" href="https://polygonscan.com/tx/${esc(t.transactionHash)}" target="_blank" rel="noopener">${esc(shortHex(t.transactionHash, 6))}</a>`
           : '—';
-        html += `<tr class="${rowCls}">`;
-        html += `<td>${fmtTime(t.createdAt)}</td>`;
-        html += `<td>${eraBadge}</td>`;
-        html += `<td>${fmt(t.tradeType)}</td>`;
-        html += `<td class="${sideCls}">${fmt(t.side)}</td>`;
-        html += `<td>${fmt(t.outcome)}</td>`;
-        html += `<td>${fmt(t.price)}</td>`;
-        html += `<td>${Number(t.size || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>`;
-        html += `<td>${fmtUsd(t.sizeUsdc)}</td>`;
-        const bf = Number(t.builderFee || 0);
-        html += `<td class="col-your-fee${bf > 0 ? '' : ' fee-zero'}">${bf > 0 ? fmtUsd(t.builderFee) : '$0.00'}</td>`;
-        html += `<td>${fmtUsd(t.feeUsdc)}</td>`;
-        html += `<td class="mono">${shortHex(t.market, 6)}</td>`;
-        html += `<td>${tx}</td>`;
-        html += `</tr>`;
+        rows.push(
+          `<tr class="${isPre ? 'row-pre-fee' : ''}">` +
+          `<td>${fmtTime(t.createdAt)}</td>` +
+          `<td>${eraBadge}</td>` +
+          `<td>${fmt(t.tradeType)}</td>` +
+          `<td class="${sideCls}">${fmt(t.side)}</td>` +
+          `<td>${fmt(t.outcome)}</td>` +
+          `<td>${fmt(t.price)}</td>` +
+          `<td>${Number(t.size || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>` +
+          `<td>${fmtUsd(t.sizeUsdc)}</td>` +
+          `<td class="col-your-fee${bf > 0 ? '' : ' fee-zero'}">${bf > 0 ? fmtUsd(bf) : '$0.00'}</td>` +
+          `<td>${fmtUsd(t.feeUsdc)}</td>` +
+          `<td class="mono">${esc(shortHex(t.market, 6))}</td>` +
+          `<td>${tx}</td>` +
+          `</tr>`,
+        );
       }
 
-      html += `</tbody></table></div>`;
+      html += `<div class="table-wrap"><table><thead><tr>` +
+        `<th>Time</th><th>Era</th><th>Type</th><th>Side</th><th>Outcome</th><th>Price</th><th>Shares</th><th>Size USDC</th><th class="col-your-fee">Your fee</th><th>PM protocol fee</th><th>Market</th><th>Tx</th>` +
+        `</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 
-      html += `<div class="input-row builder-trades-pager">`;
-      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-prev ${builderTradePage === 0 ? 'disabled' : ''}>← Prev</button>`;
-      html += `<button type="button" class="copy-all-btn" style="margin:0" data-builder-page-next ${builderTradePage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>`;
-      html += `<span class="pager">${BUILDER_TRADES_PAGE_SIZE} per page</span>`;
-      html += `</div>`;
-      builderOutput.innerHTML = html;
+      html += pagerHtml('builder-trades', builderTradePage, totalPages, `${builderPageSize} per page`);
 
-      bindBuilderDashboardFilters();
-      builderOutput.querySelectorAll('[data-builder-page-prev]').forEach(btn => {
-        btn.addEventListener('click', () => setBuilderTradePage(builderTradePage - 1));
-      });
-      builderOutput.querySelectorAll('[data-builder-page-next]').forEach(btn => {
-        btn.addEventListener('click', () => setBuilderTradePage(builderTradePage + 1));
-      });
+      builderTableEl.innerHTML = html;
     }
 
-    function bindBuilderDashboardFilters() {
-      builderOutput.querySelectorAll('[data-builder-filter]').forEach(btn => {
-        btn.addEventListener('click', () => setBuilderFeeFilter(btn.dataset.builderFilter));
-      });
-      builderOutput.querySelectorAll('[data-builder-day]').forEach(btn => {
-        btn.addEventListener('click', () => setBuilderDayFilter(btn.dataset.builderDay));
-      });
-      builderOutput.querySelector('[data-builder-day-select]')?.addEventListener('change', (e) => {
-        if (e.target.value) setBuilderDayFilter(e.target.value);
-      });
-      builderOutput.querySelectorAll('[data-builder-day-tz]').forEach(btn => {
-        btn.addEventListener('click', () => setBuilderDayTz(btn.dataset.builderDayTz));
-      });
-    }
+    /* Delegated events for the whole builder output — bound once. */
+    builderOutput.addEventListener('click', (e) => {
+      const pageBtn = e.target.closest('[data-pager="builder-trades"]');
+      if (pageBtn && !pageBtn.disabled) {
+        const page = Number(pageBtn.dataset.page);
+        const trades = filteredBuilderTrades(builderTradesPayload?.trades ?? []);
+        const totalPages = Math.max(1, Math.ceil(trades.length / builderPageSize));
+        builderTradePage = Math.max(0, Math.min(page, totalPages - 1));
+        renderBuilderTable();
+        builderTableEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      const feeBtn = e.target.closest('[data-builder-filter]');
+      if (feeBtn) {
+        builderFeeFilter = feeBtn.dataset.builderFilter;
+        builderTradePage = 0;
+        renderBuilderDashboard();
+        return;
+      }
+      const dayBtn = e.target.closest('[data-builder-day]');
+      if (dayBtn) {
+        builderDayFilter = dayBtn.dataset.builderDay || 'all';
+        builderTradePage = 0;
+        renderBuilderDashboard();
+        return;
+      }
+      const tzBtn = e.target.closest('[data-builder-day-tz]');
+      if (tzBtn && BUILDER_DAY_TZ[tzBtn.dataset.builderDayTz] && builderDayTz !== tzBtn.dataset.builderDayTz) {
+        builderDayTz = tzBtn.dataset.builderDayTz;
+        builderDayFilter = 'all';
+        builderTradePage = 0;
+        renderBuilderDashboard();
+      }
+    });
+
+    builderOutput.addEventListener('change', (e) => {
+      if (e.target.matches('[data-builder-day-select]')) {
+        if (e.target.value) {
+          builderDayFilter = e.target.value;
+          builderTradePage = 0;
+          renderBuilderDashboard();
+        }
+        return;
+      }
+      if (e.target.matches('[data-builder-page-size]')) {
+        builderPageSize = Number(e.target.value) || 100;
+        builderTradePage = 0;
+        renderBuilderTable();
+      }
+    });
 
     async function loadBuilderDashboard() {
       if (!selectedBuilderCode) {
         await loadBuilderAccounts();
       }
+      const seq = ++builderLoadSeq;
       const codeQuery = `code=${encodeURIComponent(selectedBuilderCode)}`;
       builderRefreshBtn.disabled = true;
       builderStatus.textContent = 'Loading fees and trades…';
       builderTradePage = 0;
-      builderOutput.innerHTML = '';
+      builderSummaryEl.innerHTML = '<div class="skeleton skeleton-hero"></div><div class="skeleton skeleton-stats"></div>';
+      builderControlsEl.innerHTML = '';
+      builderTableEl.innerHTML = '<div class="skeleton skeleton-table"></div>';
 
       try {
         const [feesRes, tradesRes] = await Promise.all([
           fetch(`/api/builder-fees?${codeQuery}`, { headers: builderAuthHeaders() }),
           fetch(`/api/builder-trades?all=1&${codeQuery}`, { headers: builderAuthHeaders() }),
         ]);
+        const [feesJson, tradesJson] = await Promise.all([readJson(feesRes), readJson(tradesRes)]);
+        if (seq !== builderLoadSeq) return; // superseded by a newer load
 
-        const feesJson = await feesRes.json();
-        const tradesJson = await tradesRes.json();
-        const pmVolume = feesJson.success
-          ? await fetchOfficialBuilderVolume(feesJson.builderCode ?? feesJson.fees?.code)
-          : null;
-
-        if (!feesRes.ok || !feesJson.success) {
+        if (!feesRes.ok || !feesJson.success || !tradesRes.ok || !tradesJson.success) {
           if (feesRes.status === 401 || tradesRes.status === 401) {
             logoutBuilderDashboard();
             showBuilderLogin('Session expired — enter password again.');
             return;
           }
-          throw new Error(feesJson.error || `Fees API HTTP ${feesRes.status}`);
-        }
-        if (!tradesRes.ok || !tradesJson.success) {
-          if (tradesRes.status === 401) {
-            logoutBuilderDashboard();
-            showBuilderLogin('Session expired — enter password again.');
-            return;
-          }
-          throw new Error(tradesJson.error || `Trades API HTTP ${tradesRes.status}`);
+          throw new Error(feesJson.error || tradesJson.error || `API HTTP ${feesRes.status}/${tradesRes.status}`);
         }
 
-        renderBuilderDashboard(feesJson, tradesJson, pmVolume);
+        // Render immediately; official leaderboard volume is patched in afterwards.
+        builderOfficialVolume = null;
+        renderBuilderDashboard(feesJson, tradesJson);
+
         const n = tradesJson.trades?.length ?? 0;
         const pages = tradesJson.pages ?? 1;
-        let status = `${selectedBuilderLabel || 'Builder'} · ${new Date().toLocaleTimeString()} · ${n} matched trades`;
+        let status = `${selectedBuilderLabel || 'Builder'} · ${new Date().toLocaleTimeString()} · ${n.toLocaleString()} matched trades`;
         if (pages > 1) status += ` (${pages} API pages)`;
         if (tradesJson.hasMore) status += ' · more available — refresh again or raise page limit';
         builderStatus.textContent = status;
+
+        fetchOfficialBuilderVolume(feesJson.builderCode ?? feesJson.fees?.code).then((vol) => {
+          if (seq !== builderLoadSeq || !vol) return;
+          builderOfficialVolume = vol;
+          renderBuilderSummary();
+        });
       } catch (err) {
-        builderOutput.innerHTML = `<div class="error">${err.message}<br><br>Set <code>POLYMARKET_BUILDER_*</code> env vars on Vercel (see <code>.env.example</code>). Local: <code>vercel dev</code>.</div>`;
+        if (seq !== builderLoadSeq) return;
+        builderSummaryEl.innerHTML = `<div class="error">${esc(err.message)}<br><br>Set <code>POLYMARKET_BUILDER_*</code> env vars on Vercel (see <code>.env.example</code>). Local: <code>vercel dev</code>.</div>`;
+        builderControlsEl.innerHTML = '';
+        builderTableEl.innerHTML = '';
         builderStatus.textContent = 'Failed to load';
       } finally {
-        builderRefreshBtn.disabled = false;
+        if (seq === builderLoadSeq) builderRefreshBtn.disabled = false;
       }
     }
 
-    initBuilderDashboard();
+    /* ================= Event lookup ================= */
+    const input = $('urlInput');
+    const output = $('output');
+    const fetchBtn = $('fetchBtn');
+    const LOOKUP_PAGE_SIZE = 10;
+    let lookupResult = null;
+    let lookupPage = 0;
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') fetchFromInput(); });
+    fetchBtn.addEventListener('click', fetchFromInput);
 
     function parseInput(raw) {
       const trimmed = raw.trim();
@@ -1389,10 +1654,7 @@
     }
 
     function relatedEventSlugs(baseSlug) {
-      return [
-        baseSlug,
-        ...SUB_EVENT_SUFFIXES.map(suffix => `${baseSlug}${suffix}`),
-      ];
+      return [baseSlug, ...SUB_EVENT_SUFFIXES.map(suffix => `${baseSlug}${suffix}`)];
     }
 
     function relatedMarketSlugs(eventSlug) {
@@ -1403,8 +1665,7 @@
         `${eventSlug}-btts`,
       ]);
       for (let n = 0; n <= 8; n += 1) {
-        const line = `${n}pt5`;
-        slugs.add(`${eventSlug}-total-${line}`);
+        slugs.add(`${eventSlug}-total-${n}pt5`);
       }
       for (const side of ['home', 'away']) {
         for (let n = 1; n <= 5; n += 1) {
@@ -1412,12 +1673,6 @@
         }
       }
       return [...slugs];
-    }
-
-    async function gammaGet(path) {
-      const res = await fetch(`${GAMMA}${path}`);
-      if (!res.ok) throw new Error(`Gamma API ${res.status}`);
-      return res.json();
     }
 
     async function fetchMarketBySlug(slug) {
@@ -1449,13 +1704,39 @@
       return events?.[0] ?? null;
     }
 
+    const MARKET_TYPE_ORDER = {
+      moneyline: 0,
+      soccer_first_to_score: 1,
+      totals: 2,
+      first_half_totals: 3,
+      second_half_totals: 4,
+      soccer_team_totals: 5,
+      soccer_first_half_team_totals: 6,
+      soccer_second_half_team_totals: 7,
+      spreads: 8,
+      both_teams_to_score: 9,
+      both_teams_to_score_first_half: 10,
+      both_teams_to_score_second_half: 11,
+      total_corners: 12,
+      soccer_team_total_corners: 13,
+      soccer_first_half_total_corners: 14,
+      soccer_second_half_total_corners: 15,
+      soccer_first_corner: 16,
+      soccer_game_corners_odd_even: 17,
+      soccer_player_goals: 20,
+      soccer_player_goalkeeper_saves: 21,
+      soccer_team_to_advance: 30,
+      soccer_penalty_shootout: 31,
+      soccer_extra_time: 32,
+    };
+
     async function fetchAllMarketsForEvent(eventSlug) {
       const baseSlug = baseEventSlug(eventSlug);
       const eventSlugs = relatedEventSlugs(baseSlug);
 
       const [events, ...fetchedMarkets] = await Promise.all([
         Promise.all(eventSlugs.map(fetchEventBySlug)),
-        ...relatedMarketSlugs(baseSlug).map(fetchMarketBySlug),
+        ...relatedMarketSlugs(baseSlug).map(s => fetchMarketBySlug(s).catch(() => null)),
       ]);
 
       const event = events.find(e => e?.slug === baseSlug) ?? events.find(Boolean) ?? null;
@@ -1471,33 +1752,8 @@
       }
 
       const markets = [...byCondition.values()].sort((a, b) => {
-        const order = {
-          moneyline: 0,
-          soccer_first_to_score: 1,
-          totals: 2,
-          first_half_totals: 3,
-          second_half_totals: 4,
-          soccer_team_totals: 5,
-          soccer_first_half_team_totals: 6,
-          soccer_second_half_team_totals: 7,
-          spreads: 8,
-          both_teams_to_score: 9,
-          both_teams_to_score_first_half: 10,
-          both_teams_to_score_second_half: 11,
-          total_corners: 12,
-          soccer_team_total_corners: 13,
-          soccer_first_half_total_corners: 14,
-          soccer_second_half_total_corners: 15,
-          soccer_first_corner: 16,
-          soccer_game_corners_odd_even: 17,
-          soccer_player_goals: 20,
-          soccer_player_goalkeeper_saves: 21,
-          soccer_team_to_advance: 30,
-          soccer_penalty_shootout: 31,
-          soccer_extra_time: 32,
-        };
-        const ta = order[a.sportsMarketType] ?? 99;
-        const tb = order[b.sportsMarketType] ?? 99;
+        const ta = MARKET_TYPE_ORDER[a.sportsMarketType] ?? 99;
+        const tb = MARKET_TYPE_ORDER[b.sportsMarketType] ?? 99;
         if (ta !== tb) return ta - tb;
         return String(a.groupItemTitle || a.question).localeCompare(String(b.groupItemTitle || b.question));
       });
@@ -1505,77 +1761,114 @@
       return { event, markets, eventSlug: baseSlug };
     }
 
-    function copyText(text, btn) {
-      navigator.clipboard.writeText(text).then(() => {
-        const orig = btn.textContent;
-        btn.textContent = 'Copied!';
-        setTimeout(() => (btn.textContent = orig), 1500);
-      });
-    }
-
-    function fmt(val) {
-      if (val == null || val === '') return '—';
-      return val;
-    }
-
-    function pct(val) {
-      if (val == null || val === '') return null;
-      const n = parseFloat(val);
-      if (isNaN(n)) return null;
-      return (n * 100).toFixed(1) + '%';
-    }
+    const MARKET_TYPE_LABELS = {
+      moneyline: 'Moneyline',
+      totals: 'Totals',
+      spreads: 'Spread',
+      both_teams_to_score: 'BTTS',
+      both_teams_to_score_first_half: 'BTTS 1H',
+      both_teams_to_score_second_half: 'BTTS 2H',
+      soccer_first_to_score: 'First to score',
+      total_corners: 'Corners',
+      soccer_team_total_corners: 'Team corners',
+      soccer_first_half_total_corners: 'Corners 1H',
+      soccer_second_half_total_corners: 'Corners 2H',
+      soccer_first_corner: 'First corner',
+      soccer_game_corners_odd_even: 'Corners odd/even',
+      soccer_player_goals: 'Player goals',
+      soccer_player_goalkeeper_saves: 'GK saves',
+      first_half_totals: 'Totals 1H',
+      second_half_totals: 'Totals 2H',
+      soccer_team_totals: 'Team totals',
+      soccer_first_half_team_totals: 'Team totals 1H',
+      soccer_second_half_team_totals: 'Team totals 2H',
+      soccer_team_to_advance: 'To advance',
+      soccer_penalty_shootout: 'Penalties',
+      soccer_extra_time: 'Extra time',
+    };
 
     function typeBadge(market) {
       const t = market.sportsMarketType || 'other';
-      const labels = {
-        moneyline: 'Moneyline',
-        totals: 'Totals',
-        spreads: 'Spread',
-        both_teams_to_score: 'BTTS',
-        both_teams_to_score_first_half: 'BTTS 1H',
-        both_teams_to_score_second_half: 'BTTS 2H',
-        soccer_first_to_score: 'First to score',
-        total_corners: 'Corners',
-        soccer_team_total_corners: 'Team corners',
-        soccer_first_half_total_corners: 'Corners 1H',
-        soccer_second_half_total_corners: 'Corners 2H',
-        soccer_first_corner: 'First corner',
-        soccer_game_corners_odd_even: 'Corners odd/even',
-        soccer_player_goals: 'Player goals',
-        soccer_player_goalkeeper_saves: 'GK saves',
-        first_half_totals: 'Totals 1H',
-        second_half_totals: 'Totals 2H',
-        soccer_team_totals: 'Team totals',
-        soccer_first_half_team_totals: 'Team totals 1H',
-        soccer_second_half_team_totals: 'Team totals 2H',
-        soccer_team_to_advance: 'To advance',
-        soccer_penalty_shootout: 'Penalties',
-        soccer_extra_time: 'Extra time',
-      };
       const cls = t === 'totals' || t.includes('total') ? 'type-totals'
         : t === 'spreads' ? 'type-spreads'
         : t.includes('both_teams_to_score') ? 'type-btts'
         : t.includes('corner') ? 'type-totals'
         : t.includes('player') ? 'type-spreads'
         : '';
-      return `<span class="badge ${cls}">${labels[t] || t}</span>`;
+      return `<span class="badge ${cls}">${esc(MARKET_TYPE_LABELS[t] || t)}</span>`;
     }
 
-    function renderResult({ event, markets, eventSlug }, targetEl = output) {
+    function safeJsonArray(raw) {
+      try { return JSON.parse(raw || '[]'); } catch { return []; }
+    }
+
+    function marketCardHtml(m, eventSlug) {
+      const outcomes = safeJsonArray(m.outcomes);
+      const prices = safeJsonArray(m.outcomePrices);
+      const tokenIds = safeJsonArray(m.clobTokenIds);
+      const marketUrl = m.slug
+        ? `https://polymarket.com/market/${m.slug}`
+        : (eventSlug ? `https://polymarket.com/event/${eventSlug}` : null);
+
+      let html = `<div class="market-card">`;
+      html += `<div class="market-head">`;
+      html += `<div class="market-question">${fmt(m.question)}</div>`;
+      html += `<div style="display:flex;gap:6px;flex-wrap:wrap;">${typeBadge(m)}`;
+      if (m.closed) html += `<span class="badge closed">Closed</span>`;
+      html += `</div></div>`;
+      html += `<div class="market-fields">`;
+
+      if (m.slug) {
+        html += `<div class="field"><span class="field-label">Slug</span><span class="field-value">${esc(m.slug)}</span></div>`;
+      }
+      if (m.conditionId) {
+        html += `<div class="field">
+          <span class="field-label">Condition ID</span>
+          <span class="field-value highlight">${esc(m.conditionId)}</span>
+          <button class="copy-btn" type="button" data-copy="${esc(m.conditionId)}">Copy</button>
+        </div>`;
+      }
+      if (marketUrl) {
+        html += `<div class="field">
+          <span class="field-label">Polymarket</span>
+          <a class="link-btn" href="${esc(marketUrl)}" target="_blank" rel="noopener">Open market ↗</a>
+        </div>`;
+      }
+      if (m.id) {
+        html += `<div class="field"><span class="field-label">Market ID</span><span class="field-value">${esc(m.id)}</span></div>`;
+      }
+      if (tokenIds.length > 0) {
+        html += `<div class="field"><span class="field-label">CLOB tokens</span><span class="field-value">${esc(tokenIds.join(', '))}</span></div>`;
+      }
+      if (outcomes.length > 0) {
+        html += `<div class="field"><span class="field-label">Outcomes</span><div><div class="outcomes-row">`;
+        for (let i = 0; i < outcomes.length; i++) {
+          html += `<span class="outcome-chip">${esc(outcomes[i])}</span>`;
+          const p = pct(prices[i]);
+          if (p) html += `<span class="price-chip">${p}</span>`;
+        }
+        html += `</div></div></div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    function renderResult(result, targetEl = output, page = 0) {
+      const { event, markets, eventSlug } = result;
       const allConditionIds = markets.map(m => m.conditionId).filter(Boolean);
-      let html = '';
+      let html = result.prefixHtml || '';
 
       html += `<div class="event-header">`;
       html += `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">`;
       html += `<div class="event-title">${fmt(event?.title || eventSlug)}</div>`;
-      if (event?.active) html += `<span class="badge">Active</span>`;
+      if (event?.active) html += `<span class="badge live">Active</span>`;
       if (event?.closed) html += `<span class="badge closed">Closed</span>`;
       html += `</div>`;
       html += `<div class="event-meta">`;
-      if (event?.startDate) html += `<span>Start: ${new Date(event.startDate).toLocaleString()}</span>`;
-      if (event?.endDate) html += `<span>End: ${new Date(event.endDate).toLocaleString()}</span>`;
-      html += `<span>Slug: <code>${eventSlug}</code></span>`;
-      html += `<span>Markets found: <b style="color:#e2e8f0">${markets.length}</b></span>`;
+      if (event?.startDate) html += `<span>Start: ${fmtTime(event.startDate)}</span>`;
+      if (event?.endDate) html += `<span>End: ${fmtTime(event.endDate)}</span>`;
+      html += `<span>Slug: <code>${esc(eventSlug)}</code></span>`;
+      html += `<span>Markets found: <b style="color:var(--text)">${markets.length}</b></span>`;
       html += `</div></div>`;
 
       if (markets.length === 0) {
@@ -1587,71 +1880,113 @@
       html += `<button class="copy-all-btn" data-copy-all>Copy all condition IDs (${allConditionIds.length})</button>`;
       html += `<div class="markets-label">${markets.length} markets</div>`;
 
-      for (const m of markets) {
-        const outcomes = (() => { try { return JSON.parse(m.outcomes || '[]'); } catch { return []; } })();
-        const prices = (() => { try { return JSON.parse(m.outcomePrices || '[]'); } catch { return []; } })();
-        const tokenIds = (() => { try { return JSON.parse(m.clobTokenIds || '[]'); } catch { return []; } })();
-        const marketUrl = m.slug
-          ? `https://polymarket.com/market/${m.slug}`
-          : (eventSlug ? `https://polymarket.com/event/${eventSlug}` : null);
+      const totalPages = Math.max(1, Math.ceil(markets.length / LOOKUP_PAGE_SIZE));
+      const safePage = Math.max(0, Math.min(page, totalPages - 1));
+      const start = safePage * LOOKUP_PAGE_SIZE;
+      const pageMarkets = markets.slice(start, start + LOOKUP_PAGE_SIZE);
+      const pagerKey = targetEl === output ? 'lookup-markets' : 'crypto-markets';
+      const info = totalPages > 1
+        ? `${start + 1}–${Math.min(start + LOOKUP_PAGE_SIZE, markets.length)} of ${markets.length}`
+        : '';
 
-        html += `<div class="market-card">`;
-        html += `<div class="market-head">`;
-        html += `<div class="market-question">${fmt(m.question)}</div>`;
-        html += `<div style="display:flex;gap:6px;flex-wrap:wrap;">${typeBadge(m)}`;
-        if (m.closed) html += `<span class="badge closed">Closed</span>`;
-        html += `</div></div>`;
-        html += `<div class="market-fields">`;
-
-        if (m.slug) {
-          html += `<div class="field"><span class="field-label">Slug</span><span class="field-value">${m.slug}</span></div>`;
-        }
-
-        if (m.conditionId) {
-          html += `<div class="field">
-            <span class="field-label">Condition ID</span>
-            <span class="field-value highlight">${m.conditionId}</span>
-            <button class="copy-btn" type="button" data-copy="${m.conditionId}">Copy</button>
-          </div>`;
-        }
-
-        if (marketUrl) {
-          html += `<div class="field">
-            <span class="field-label">Polymarket</span>
-            <a class="link-btn" href="${marketUrl}" target="_blank" rel="noopener">Open market ↗</a>
-          </div>`;
-        }
-
-        if (m.id) {
-          html += `<div class="field"><span class="field-label">Market ID</span><span class="field-value">${m.id}</span></div>`;
-        }
-
-        if (tokenIds.length > 0) {
-          html += `<div class="field"><span class="field-label">CLOB tokens</span><span class="field-value">${tokenIds.join(', ')}</span></div>`;
-        }
-
-        if (outcomes.length > 0) {
-          html += `<div class="field"><span class="field-label">Outcomes</span><div><div class="outcomes-row">`;
-          for (let i = 0; i < outcomes.length; i++) {
-            html += `<span class="outcome-chip">${outcomes[i]}</span>`;
-            const p = pct(prices[i]);
-            if (p) html += `<span class="price-chip">${p}</span>`;
-          }
-          html += `</div></div></div>`;
-        }
-
-        html += `</div></div>`;
-      }
+      html += pagerHtml(pagerKey, safePage, totalPages, info);
+      for (const m of pageMarkets) html += marketCardHtml(m, eventSlug);
+      html += pagerHtml(pagerKey, safePage, totalPages, info);
 
       targetEl.innerHTML = html;
-
-      targetEl.querySelector('[data-copy-all]')?.addEventListener('click', function () {
-        copyText(allConditionIds.join('\n'), this);
-      });
-      targetEl.querySelectorAll('[data-copy]').forEach(btn => {
-        btn.addEventListener('click', () => copyText(btn.dataset.copy, btn));
-      });
+      targetEl.dataset.page = String(safePage);
     }
+
+    /* Delegated copy + pagination for lookup output. */
+    output.addEventListener('click', (e) => {
+      handleResultAreaClick(e, output, () => lookupResult, (p) => { lookupPage = p; });
+    });
+
+    function handleResultAreaClick(e, targetEl, getResult, setPage) {
+      const copyAll = e.target.closest('[data-copy-all]');
+      if (copyAll) {
+        const result = getResult();
+        const ids = (result?.markets ?? []).map(m => m.conditionId).filter(Boolean);
+        copyText(ids.join('\n'), copyAll);
+        return true;
+      }
+      const copyBtn = e.target.closest('[data-copy]');
+      if (copyBtn) {
+        copyText(copyBtn.dataset.copy, copyBtn);
+        return true;
+      }
+      const pageBtn = e.target.closest('[data-pager="lookup-markets"], [data-pager="crypto-markets"]');
+      if (pageBtn && !pageBtn.disabled && !pageBtn.classList.contains('active')) {
+        const result = getResult();
+        if (!result) return true;
+        const p = Number(pageBtn.dataset.page);
+        setPage(p);
+        renderResult(result, targetEl, p);
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return true;
+      }
+      return false;
+    }
+
+    async function fetchFromInput() {
+      const parsed = parseInput(input.value);
+      if (parsed.kind === 'empty' || parsed.kind === 'invalid') {
+        output.innerHTML = `<div class="error">Paste a Polymarket URL, slug, or condition ID.</div>`;
+        return;
+      }
+
+      fetchBtn.disabled = true;
+      lookupPage = 0;
+      output.innerHTML = skeletonList(4);
+
+      try {
+        if (parsed.kind === 'market') {
+          const m = await fetchMarketBySlug(parsed.slug);
+          if (!m) throw new Error(`No market found for slug "${parsed.slug}"`);
+          const base = parsed.slug.replace(/-(total|spread|btts|nor|fra|draw).*$/, '');
+          lookupResult = { event: null, markets: [m], eventSlug: base || parsed.slug };
+          renderResult(lookupResult);
+          return;
+        }
+
+        if (parsed.kind === 'condition') {
+          const m = await fetchMarketByConditionId(parsed.value);
+          if (!m) throw new Error(`No market found for condition ID`);
+          lookupResult = { event: null, markets: [m], eventSlug: m.slug || parsed.value };
+          renderResult(lookupResult);
+          return;
+        }
+
+        const baseSlug = baseEventSlug(parsed.slug);
+        output.innerHTML = `<div class="status">Loading all markets for <b>${esc(baseSlug)}</b> (including player props, corners, and more)…</div>` + skeletonList(4);
+        lookupResult = await fetchAllMarketsForEvent(parsed.slug);
+        renderResult(lookupResult);
+      } catch (err) {
+        output.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    /* ================= Crypto auto markets ================= */
+    const CRYPTO_PAGE_SIZE = 20;
+    const cryptoOutput = $('cryptoOutput');
+    const cryptoPagination = $('cryptoPagination');
+    const cryptoListBtn = $('cryptoListBtn');
+    const cryptoCurrentBtn = $('cryptoCurrentBtn');
+    const cryptoState = {
+      loaded: false,
+      page: 0,
+      events: [],
+      hasMore: false,
+      detail: null,
+      detailPage: 0,
+      seq: 0,
+    };
+
+    cryptoCurrentBtn.addEventListener('click', loadCurrentCryptoWindow);
+    cryptoListBtn.addEventListener('click', () => loadCryptoAutoMarkets(0));
+    $('cryptoSeriesSelect').addEventListener('change', () => loadCryptoAutoMarkets(0));
 
     function cryptoWindowStatus(event) {
       const now = Date.now();
@@ -1664,26 +1999,77 @@
     }
 
     function selectedCryptoSeries() {
-      return document.getElementById('cryptoSeriesSelect')?.value || 'btc-up-or-down-5m';
+      return $('cryptoSeriesSelect').value || 'btc-up-or-down-5m';
     }
 
-    async function fetchCryptoEvents(series, limit = CRYPTO_PAGE_SIZE, offset = 0) {
+    function fetchCryptoEvents(series, limit = CRYPTO_PAGE_SIZE, offset = 0, opts) {
       return gammaGet(
         `/events?series_slug=${encodeURIComponent(series)}&limit=${limit}&offset=${offset}&order=startDate&ascending=false`,
+        opts,
       );
+    }
+
+    function renderCryptoPagination() {
+      const series = selectedCryptoSeries();
+      const info = cryptoState.events.length
+        ? `${cryptoState.page * CRYPTO_PAGE_SIZE + 1}–${cryptoState.page * CRYPTO_PAGE_SIZE + cryptoState.events.length} · ${esc(series)}`
+        : 'No windows';
+      cryptoPagination.innerHTML = offsetPagerHtml('crypto-list', cryptoState.page, cryptoState.hasMore, info);
+    }
+
+    cryptoPagination.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pager="crypto-list"]');
+      if (btn && !btn.disabled) loadCryptoAutoMarkets(Number(btn.dataset.page));
+    });
+
+    function renderCryptoList() {
+      const events = cryptoState.events;
+      if (!events.length) {
+        cryptoOutput.innerHTML = `<div class="status">No windows in this series.</div>`;
+        return;
+      }
+      let html = `<div class="events-list">`;
+      for (const e of events) {
+        const st = cryptoWindowStatus(e);
+        const rowCls = st.cls === 'live' ? ' event-row-live' : st.cls === 'upcoming' ? ' event-row-upcoming' : '';
+        const m = (e.markets ?? [])[0];
+        const cond = m?.conditionId ? shortHex(m.conditionId, 8) : '—';
+        html += `<div class="event-row${rowCls}" data-crypto-slug="${esc(e.slug)}">
+          <div class="event-row-title">${fmt(e.title)} <span class="badge${st.cls === 'closed' ? ' closed' : st.cls === 'live' ? ' live' : ''}">${st.label}</span></div>
+          <div class="event-row-meta">${esc(e.slug)}${m?.conditionId ? ` · ${esc(cond)}` : ''}${e.endDate ? ` · ends ${fmtTime(e.endDate)}` : ''}</div>
+        </div>`;
+      }
+      html += `</div>`;
+      html += `<p class="hint" style="margin-top:12px">Click a row for full condition ID, CLOB tokens, and live prices.</p>`;
+      cryptoOutput.innerHTML = html;
+    }
+
+    cryptoOutput.addEventListener('click', (e) => {
+      const backBtn = e.target.closest('[data-crypto-back]');
+      if (backBtn) {
+        cryptoState.detail = null;
+        renderCryptoList();
+        renderCryptoPagination();
+        return;
+      }
+      if (handleResultAreaClick(e, cryptoOutput, () => cryptoState.detail, (p) => { cryptoState.detailPage = p; })) return;
+      const row = e.target.closest('[data-crypto-slug]');
+      if (row) openCryptoEvent(row.dataset.cryptoSlug);
+    });
+
+    function cryptoBackButtonHtml() {
+      return `<button type="button" class="btn-ghost" data-crypto-back style="margin-bottom:14px">← Back to windows</button>`;
     }
 
     async function loadCurrentCryptoWindow() {
       const series = selectedCryptoSeries();
+      const seq = ++cryptoState.seq;
       cryptoCurrentBtn.disabled = true;
-      cryptoOutput.innerHTML = `<div class="status">Finding current window for <b>${series}</b>…</div>`;
+      cryptoOutput.innerHTML = `<div class="status">Finding current window for <b>${esc(series)}</b>…</div>` + skeletonList(3);
       try {
-        const events = await fetchCryptoEvents(series, 30, 0);
-        const now = Date.now();
-        const live = events.find((e) => {
-          const st = cryptoWindowStatus(e);
-          return st.cls === 'live';
-        });
+        const events = await fetchCryptoEvents(series, 30, 0, { fresh: true });
+        if (seq !== cryptoState.seq) return;
+        const live = events.find((e) => cryptoWindowStatus(e).cls === 'live');
         const upcoming = events.find((e) => cryptoWindowStatus(e).cls === 'upcoming');
         const current = live || upcoming || events[0];
         if (!current) throw new Error('No active or upcoming window found for this series');
@@ -1692,163 +2078,132 @@
         const markets = current.markets?.length
           ? current.markets
           : [await fetchMarketBySlug(current.slug)].filter(Boolean);
-        renderResult({ event: current, markets, eventSlug: current.slug }, cryptoOutput);
-        const banner = document.createElement('div');
-        banner.className = 'crypto-current-banner';
-        banner.innerHTML = `<h3>${st.label}: ${fmt(current.title)}</h3><p>Series <code>${series}</code>${current.startDate ? ` · starts ${new Date(current.startDate).toLocaleString()}` : ''}${current.endDate ? ` · ends ${new Date(current.endDate).toLocaleString()}` : ''}</p>`;
-        cryptoOutput.insertBefore(banner, cryptoOutput.firstChild);
+        if (seq !== cryptoState.seq) return;
+        const bannerHtml =
+          `<div class="crypto-current-banner"><h3>${esc(st.label)}: ${fmt(current.title)}</h3><p>Series <code>${esc(series)}</code>${current.startDate ? ` · starts ${fmtTime(current.startDate)}` : ''}${current.endDate ? ` · ends ${fmtTime(current.endDate)}` : ''}</p></div>`;
+        cryptoState.detail = {
+          event: current,
+          markets,
+          eventSlug: current.slug,
+          prefixHtml: (cryptoState.loaded ? cryptoBackButtonHtml() : '') + bannerHtml,
+        };
+        cryptoState.detailPage = 0;
+        renderResult(cryptoState.detail, cryptoOutput);
       } catch (err) {
-        cryptoOutput.innerHTML = `<div class="error">${err.message}</div>`;
+        if (seq === cryptoState.seq) cryptoOutput.innerHTML = `<div class="error">${esc(err.message)}</div>`;
       } finally {
         cryptoCurrentBtn.disabled = false;
       }
     }
 
     async function openCryptoEvent(slug) {
-      cryptoOutput.innerHTML = `<div class="status">Loading <b>${slug}</b>…</div>`;
+      const seq = ++cryptoState.seq;
+      cryptoOutput.innerHTML = `<div class="status">Loading <b>${esc(slug)}</b>…</div>` + skeletonList(3);
       try {
         const event = await fetchEventBySlug(slug);
         if (!event) throw new Error(`Event not found: ${slug}`);
         const markets = event.markets?.length
           ? event.markets
           : [await fetchMarketBySlug(slug)].filter(Boolean);
-        renderResult({ event, markets, eventSlug: slug }, cryptoOutput);
+        if (seq !== cryptoState.seq) return;
+        cryptoState.detail = { event, markets, eventSlug: slug, prefixHtml: cryptoBackButtonHtml() };
+        cryptoState.detailPage = 0;
+        renderResult(cryptoState.detail, cryptoOutput);
       } catch (err) {
-        cryptoOutput.innerHTML = `<div class="error">${err.message}</div>`;
+        if (seq === cryptoState.seq) cryptoOutput.innerHTML = `<div class="error">${esc(err.message)}</div>`;
       }
     }
 
-    async function loadCryptoAutoMarkets(offset) {
-      cryptoOffset = Math.max(0, offset);
+    async function loadCryptoAutoMarkets(page) {
       const series = selectedCryptoSeries();
+      const seq = ++cryptoState.seq;
+      cryptoState.page = Math.max(0, page);
+      cryptoState.detail = null;
       cryptoListBtn.disabled = true;
-      cryptoOutput.innerHTML = `<div class="status">Loading ${series} windows…</div>`;
+      cryptoOutput.innerHTML = skeletonList(8);
 
       try {
-        const events = await fetchCryptoEvents(series, CRYPTO_PAGE_SIZE, cryptoOffset);
-        document.getElementById('cryptoPrevBtn').disabled = cryptoOffset === 0;
-        document.getElementById('cryptoNextBtn').disabled = events.length < CRYPTO_PAGE_SIZE;
-        document.getElementById('cryptoPager').textContent = events.length
-          ? `${cryptoOffset + 1}–${cryptoOffset + events.length} · ${series}`
-          : 'No windows';
-
-        if (!events.length) {
-          cryptoOutput.innerHTML = `<div class="status">No windows in this series.</div>`;
-          return;
-        }
-
-        let html = `<div class="events-list">`;
-        for (const e of events) {
-          const st = cryptoWindowStatus(e);
-          const rowCls = st.cls === 'live' ? ' event-row-live' : st.cls === 'upcoming' ? ' event-row-upcoming' : '';
-          const m = (e.markets ?? [])[0];
-          const cond = m?.conditionId ? shortHex(m.conditionId, 8) : '—';
-          html += `<div class="event-row${rowCls}" data-crypto-slug="${e.slug}">
-            <div class="event-row-title">${fmt(e.title)} <span class="badge${st.cls === 'closed' ? ' closed' : ''}">${st.label}</span></div>
-            <div class="event-row-meta">${e.slug}${m?.conditionId ? ` · ${cond}` : ''}${e.endDate ? ` · ends ${new Date(e.endDate).toLocaleString()}` : ''}</div>
-          </div>`;
-        }
-        html += `</div>`;
-        html += `<p class="hint" style="margin-top:12px">Click a row for full condition ID, CLOB tokens, and live prices.</p>`;
-        cryptoOutput.innerHTML = html;
-
-        cryptoOutput.querySelectorAll('[data-crypto-slug]').forEach((row) => {
-          row.addEventListener('click', () => openCryptoEvent(row.dataset.cryptoSlug));
-        });
+        // Fetch one extra row to know whether a next page exists.
+        const events = await fetchCryptoEvents(series, CRYPTO_PAGE_SIZE + 1, cryptoState.page * CRYPTO_PAGE_SIZE);
+        if (seq !== cryptoState.seq) return;
+        cryptoState.hasMore = events.length > CRYPTO_PAGE_SIZE;
+        cryptoState.events = events.slice(0, CRYPTO_PAGE_SIZE);
+        cryptoState.loaded = true;
+        renderCryptoPagination();
+        renderCryptoList();
       } catch (err) {
-        cryptoOutput.innerHTML = `<div class="error">${err.message}</div>`;
+        if (seq === cryptoState.seq) cryptoOutput.innerHTML = `<div class="error">${esc(err.message)}</div>`;
       } finally {
         cryptoListBtn.disabled = false;
       }
     }
 
-    async function fetchFromInput() {
-      const parsed = parseInput(input.value);
-      if (parsed.kind === 'empty' || parsed.kind === 'invalid') {
-        output.innerHTML = `<div class="error">Paste a Polymarket URL, slug, or condition ID.</div>`;
-        return;
-      }
+    /* ================= Browse events ================= */
+    const BROWSE_PAGE_SIZE = 50;
+    const browseOutput = $('browseOutput');
+    const browsePagination = $('browsePagination');
+    const browseBtn = $('browseBtn');
+    const browseState = { page: 0, events: [], hasMore: false, seq: 0 };
 
-      fetchBtn.disabled = true;
-      output.innerHTML = `<div class="status">Fetching…</div>`;
+    browseBtn.addEventListener('click', () => browseEvents(0));
+    $('seriesSelect').addEventListener('change', () => browseEvents(0));
 
-      try {
-        if (parsed.kind === 'market') {
-          const m = await fetchMarketBySlug(parsed.slug);
-          if (!m) throw new Error(`No market found for slug "${parsed.slug}"`);
-          const base = parsed.slug.replace(/-(total|spread|btts|nor|fra|draw).*$/, '');
-          renderResult({ event: null, markets: [m], eventSlug: base || parsed.slug });
-          return;
-        }
+    browsePagination.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pager="browse-list"]');
+      if (btn && !btn.disabled) browseEvents(Number(btn.dataset.page));
+    });
 
-        if (parsed.kind === 'condition') {
-          const m = await fetchMarketByConditionId(parsed.value);
-          if (!m) throw new Error(`No market found for condition ID`);
-          renderResult({ event: null, markets: [m], eventSlug: m.slug || parsed.value });
-          return;
-        }
+    browseOutput.addEventListener('click', (e) => {
+      const row = e.target.closest('[data-slug]');
+      if (!row) return;
+      document.querySelector('#mainTabs .tab[data-tab="lookup"]').click();
+      input.value = `https://polymarket.com/event/${row.dataset.slug}`;
+      fetchFromInput();
+    });
 
-        const baseSlug = baseEventSlug(parsed.slug);
-        output.innerHTML = `<div class="status">Loading all markets for <b>${baseSlug}</b> (including player props, corners, and more)…</div>`;
-        const result = await fetchAllMarketsForEvent(parsed.slug);
-        renderResult(result);
-      } catch (err) {
-        output.innerHTML = `<div class="error">${err.message}</div>`;
-      } finally {
-        fetchBtn.disabled = false;
-      }
-    }
-
-    async function browseEvents(offset) {
-      browseOffset = Math.max(0, offset);
-      const series = document.getElementById('seriesSelect').value;
-      const browseOutput = document.getElementById('browseOutput');
-      const browseBtn = document.getElementById('browseBtn');
+    async function browseEvents(page) {
+      browseState.page = Math.max(0, page);
+      const seq = ++browseState.seq;
+      const series = $('seriesSelect').value;
       browseBtn.disabled = true;
-      browseOutput.innerHTML = `<div class="status">Loading events…</div>`;
+      browseOutput.innerHTML = skeletonList(8);
 
       try {
         const events = await gammaGet(
-          `/events?series_slug=${encodeURIComponent(series)}&limit=100&offset=${browseOffset}&active=true&closed=false`,
+          `/events?series_slug=${encodeURIComponent(series)}&limit=${BROWSE_PAGE_SIZE + 1}&offset=${browseState.page * BROWSE_PAGE_SIZE}&active=true&closed=false`,
         );
-        document.getElementById('prevBtn').disabled = browseOffset === 0;
-        document.getElementById('nextBtn').disabled = events.length < 100;
-        document.getElementById('browsePager').textContent =
-          events.length ? `Showing ${browseOffset + 1}–${browseOffset + events.length}` : 'No events';
+        if (seq !== browseState.seq) return;
+        browseState.hasMore = events.length > BROWSE_PAGE_SIZE;
+        browseState.events = events.slice(0, BROWSE_PAGE_SIZE);
 
-        if (!events.length) {
+        const info = browseState.events.length
+          ? `${browseState.page * BROWSE_PAGE_SIZE + 1}–${browseState.page * BROWSE_PAGE_SIZE + browseState.events.length}`
+          : 'No events';
+        browsePagination.innerHTML = offsetPagerHtml('browse-list', browseState.page, browseState.hasMore, info);
+
+        if (!browseState.events.length) {
           browseOutput.innerHTML = `<div class="status">No more events.</div>`;
           return;
         }
 
         let html = `<div class="events-list">`;
-        for (const e of events) {
-          html += `<div class="event-row" data-slug="${e.slug}">
+        for (const e of browseState.events) {
+          html += `<div class="event-row" data-slug="${esc(e.slug)}">
             <div class="event-row-title">${fmt(e.title)}</div>
-            <div class="event-row-meta">${e.slug} · ${e.markets?.length ?? 0} moneyline markets on Gamma</div>
+            <div class="event-row-meta">${esc(e.slug)} · ${e.markets?.length ?? 0} moneyline markets on Gamma</div>
           </div>`;
         }
         html += `</div>`;
         browseOutput.innerHTML = html;
-
-        browseOutput.querySelectorAll('.event-row').forEach(row => {
-          row.addEventListener('click', () => {
-            document.querySelector('.tab[data-tab="lookup"]').click();
-            input.value = `https://polymarket.com/event/${row.dataset.slug}`;
-            fetchFromInput();
-          });
-        });
       } catch (err) {
-        browseOutput.innerHTML = `<div class="error">${err.message}</div>`;
+        if (seq === browseState.seq) browseOutput.innerHTML = `<div class="error">${esc(err.message)}</div>`;
       } finally {
         browseBtn.disabled = false;
       }
     }
 
-    document.getElementById('cryptoSeriesSelect')?.addEventListener('change', () => {
-      cryptoOffset = 0;
-      loadCryptoAutoMarkets(0);
-    });
+    /* ================= Init ================= */
+    initBuilderDashboard();
   </script>
 </body>
 </html>
