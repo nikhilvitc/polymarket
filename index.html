@@ -7,6 +7,9 @@
   <title>Polymarket Explorer — Builder fees, crypto windows &amp; condition IDs</title>
   <link rel="preconnect" href="https://gamma-api.polymarket.com" crossorigin />
   <link rel="preconnect" href="https://data-api.polymarket.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
   <style>
     :root {
@@ -32,7 +35,7 @@
       --radius: 12px;
       --radius-sm: 8px;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-      --mono: 'SF Mono', ui-monospace, 'Fira Code', Menlo, monospace;
+      --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,17 +43,17 @@
     html { scrollbar-gutter: stable; }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
       background:
-        radial-gradient(1100px 500px at 15% -10%, rgba(99, 102, 241, 0.14), transparent 60%),
-        radial-gradient(900px 420px at 90% -20%, rgba(139, 92, 246, 0.10), transparent 55%),
+        radial-gradient(900px 420px at 8% -8%, rgba(52, 211, 153, 0.08), transparent 55%),
+        radial-gradient(800px 480px at 92% -12%, rgba(99, 102, 241, 0.12), transparent 50%),
         var(--bg);
       color: var(--text);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
 
-    .container { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 22px 88px; }
 
     /* ---------- Header ---------- */
     .site-header {
@@ -65,9 +68,9 @@
     }
 
     .header-inner {
-      max-width: 980px;
+      max-width: 1080px;
       margin: 0 auto;
-      padding: 14px 20px 0;
+      padding: 16px 22px 0;
     }
 
     .brand-row {
@@ -79,13 +82,10 @@
     }
 
     h1 {
-      font-size: 1.25rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      background: linear-gradient(90deg, #f8fafc 30%, var(--accent-soft));
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fff;
     }
 
     .subtitle {
@@ -119,8 +119,8 @@
     .tab:hover { color: var(--text); background: transparent; }
 
     .tab.active {
-      color: var(--accent-soft);
-      border-bottom-color: var(--accent);
+      color: #fff;
+      border-bottom-color: var(--green);
     }
 
     .builder-account-tabs {
@@ -138,9 +138,9 @@
     }
 
     .builder-account-tabs .tab.active {
-      background: var(--accent-bg);
-      border-color: var(--accent);
-      color: #e0e7ff;
+      background: var(--green-bg);
+      border-color: rgba(52, 211, 153, 0.4);
+      color: var(--green);
     }
 
     .panel { display: none; }
@@ -331,9 +331,19 @@
     .filter-btn:hover:not(.active) { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }
 
     .filter-btn.active {
-      background: var(--accent-bg);
-      border-color: var(--accent);
-      color: #e0e7ff;
+      background: var(--green-bg);
+      border-color: rgba(52, 211, 153, 0.45);
+      color: var(--green);
+    }
+
+    .filter-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: grid;
+      gap: 10px;
     }
 
     .filter-row select.day-select {
@@ -509,9 +519,9 @@
     /* ---------- Stats ---------- */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 10px;
-      margin-bottom: 18px;
+      margin-bottom: 10px;
     }
 
     .stat-card {
@@ -527,22 +537,36 @@
     }
     .stat-card-earnings .stat-value { color: var(--green); }
 
-    .earnings-grid { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+    .earnings-grid { grid-template-columns: repeat(4, 1fr); }
 
     .fees-hero {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
-      gap: 14px;
+      grid-template-columns: 1.45fr 1fr 1fr;
+      gap: 0;
       margin-bottom: 14px;
-      padding: 18px 20px;
-      border: 1px solid rgba(52, 211, 153, 0.3);
+      border: 1px solid rgba(52, 211, 153, 0.28);
       border-radius: var(--radius);
-      background: linear-gradient(135deg, rgba(9, 38, 24, 0.55), var(--bg-soft) 55%, var(--surface));
+      background:
+        radial-gradient(600px 200px at 0% 0%, rgba(52, 211, 153, 0.12), transparent 55%),
+        linear-gradient(160deg, #0b1612 0%, var(--surface) 55%);
       box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .fees-hero > * {
+      padding: 22px 22px;
+      border-right: 1px solid rgba(52, 211, 153, 0.12);
+    }
+    .fees-hero > *:last-child { border-right: none; }
+    @media (max-width: 900px) {
+      .fees-hero { grid-template-columns: 1fr; }
+      .fees-hero > * {
+        border-right: none;
+        border-bottom: 1px solid rgba(52, 211, 153, 0.12);
+      }
+      .fees-hero > *:last-child { border-bottom: none; }
     }
 
     .fees-hero-title {
-      grid-column: 1 / -1;
       color: #86efac;
       font-size: 0.75rem;
       font-weight: 800;
@@ -556,7 +580,7 @@
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .fees-hero-value {
@@ -565,9 +589,10 @@
       font-weight: 800;
       line-height: 1.15;
       font-variant-numeric: tabular-nums;
+      margin-bottom: 6px;
     }
 
-    .fees-hero-sub { color: var(--text-dim); font-size: 0.72rem; margin-top: 4px; line-height: 1.45; }
+    .fees-hero-sub { color: var(--text-dim); font-size: 0.74rem; line-height: 1.45; }
     .fees-hero-total .fees-hero-value { font-size: 1.65rem; }
 
     th.col-your-fee, td.col-your-fee { background: rgba(52, 211, 153, 0.05); }
@@ -652,9 +677,167 @@
       gap: 10px;
       align-items: center;
       flex-wrap: wrap;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar .status { margin: 0; flex: 1; min-width: 160px; }
+
+    .dash-account {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
       margin-bottom: 16px;
     }
-    .toolbar .status { margin: 0; }
+    .dash-account-label {
+      color: var(--text-faint);
+      font-size: 0.72rem;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .dash-account-name { font-size: 0.95rem; font-weight: 650; }
+
+    .stream-banner, .scope-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      padding: 11px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: var(--text-dim);
+    }
+    .stream-banner {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+    .stream-banner .pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent-soft);
+      animation: pulse 1.4s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.45); }
+      70% { box-shadow: 0 0 0 8px rgba(129, 140, 248, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); }
+    }
+    .scope-banner {
+      background: var(--accent-bg);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+    }
+
+    .fees-hero-eyebrow {
+      color: #86efac;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .fees-hero-big {
+      color: var(--green);
+      font-size: 2.35rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 8px;
+    }
+    .rate-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .rate-pill {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 0.74rem;
+      color: var(--text-dim);
+    }
+    .rate-pill b { color: var(--green); font-weight: 650; }
+
+    .metrics-heading {
+      color: var(--text-faint);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 4px 0 10px;
+    }
+    .meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+    .meta-item { display: flex; align-items: baseline; gap: 8px; font-size: 0.76rem; }
+    .meta-item .meta-k {
+      color: var(--text-faint);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.66rem;
+    }
+    .meta-item .meta-v { color: var(--text-dim); font-family: var(--mono); font-size: 0.74rem; }
+    .meta-item .meta-v.green { color: var(--green); font-family: inherit; font-weight: 650; }
+
+    details.help-details {
+      margin-bottom: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+    details.help-details summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 11px 14px;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      font-weight: 550;
+      user-select: none;
+    }
+    details.help-details summary::-webkit-details-marker { display: none; }
+    details.help-details summary::before {
+      content: '›';
+      display: inline-block;
+      margin-right: 8px;
+      color: var(--text-faint);
+      transition: transform 0.15s;
+    }
+    details.help-details[open] summary::before { transform: rotate(90deg); }
+    details.help-details .hint {
+      margin: 0;
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 8px 0 12px;
+    }
+    .section-title h2 {
+      font-size: 0.95rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    .section-title span { color: var(--text-faint); font-size: 0.76rem; }
+
+    @media (max-width: 900px) {
+      .stats-grid.earnings-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .stats-grid.earnings-grid { grid-template-columns: 1fr; }
+      .fees-hero-big { font-size: 1.85rem; }
+    }
 
     /* ---------- Login ---------- */
     .login-card {
@@ -1011,6 +1194,11 @@
     let builderTradePage = 0;
     let builderPageSize = 100;
     let builderLoadSeq = 0;
+    let builderTradesLoading = false;
+    let builderTradesPages = 0;
+    let builderTradesHasMore = false;
+    let builderRenderTimer = 0;
+    let builderServerSummary = null;
 
     const BUILDER_DAY_TZ = {
       utc: { iana: 'UTC', label: 'UTC' },
@@ -1084,7 +1272,12 @@
       selectedBuilderCode = null;
       selectedBuilderLabel = '';
       builderTrades = [];
+      builderTradesPayload = null;
+      builderFeesPayload = null;
+      builderServerSummary = null;
       builderTradePage = 0;
+      builderTradesLoading = false;
+      builderLoadSeq += 1; // cancel in-flight progressive loads
       builderPasswordInput.value = '';
       builderSummaryEl.innerHTML = '';
       builderControlsEl.innerHTML = '';
@@ -1320,7 +1513,11 @@
       const fees = builderFeesPayload?.fees ?? {};
       const code = builderFeesPayload?.builderCode ?? fees.code ?? '—';
       const allTrades = builderTradesPayload?.trades ?? [];
-      const allSummary = summarizeTrades(allTrades);
+      const loadedSummary = summarizeTrades(allTrades);
+      // While trades stream in, prefer server-computed all-time totals (small, fast payload).
+      const useServerTotals =
+        builderTradesLoading && builderServerSummary && builderServerSummary.count >= loadedSummary.count;
+      const allSummary = useServerTotals ? builderServerSummary : loadedSummary;
       const filtered = filteredBuilderTrades(allTrades);
       const displaySummary = builderDayFilter === 'all' ? allSummary : summarizeTrades(filtered);
       const scopeLabel = builderDayFilter === 'all'
@@ -1329,49 +1526,66 @@
       const pmWeek = builderOfficialVolume?.WEEK;
       const pmMonth = builderOfficialVolume?.MONTH;
 
-      let html = '';
-
-      if (selectedBuilderLabel) {
-        html += `<p class="hint" style="margin-bottom:12px"><b>Account:</b> ${esc(selectedBuilderLabel)}</p>`;
-      }
-
-      if (scopeLabel) {
-        html += `<p class="hint" style="margin-bottom:12px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--accent);border-radius:8px">Showing totals for <b>${scopeLabel}</b> · ${displaySummary.count.toLocaleString()} trades · ${fmtUsd(displaySummary.builderFees)} fees · ${fmtUsd(displaySummary.volumeUsdc)} USDC · All time: ${fmtUsd(allSummary.builderFees)} fees · ${allSummary.count.toLocaleString()} trades</p>`;
-      }
-
       const takerBps = fees.builder_taker_fee_rate_bps ?? 0;
       const makerBps = fees.builder_maker_fee_rate_bps ?? 0;
       const exampleTakerFee = estimateBuilderFeeUsdc(1000, takerBps);
       const exampleMakerFee = estimateBuilderFeeUsdc(1000, makerBps);
-      const heroTitle = scopeLabel
-        ? `YeNo builder fees — ${scopeLabel}`
-        : 'YeNo builder fees — what you earn';
+
+      let html = '';
+
+      if (selectedBuilderLabel) {
+        html += `<div class="dash-account"><span class="dash-account-label">Account</span><span class="dash-account-name">${esc(selectedBuilderLabel)}</span></div>`;
+      }
+
+      if (builderTradesLoading) {
+        const totalsNote = useServerTotals
+          ? `all-time totals from server · <b>${loadedSummary.count.toLocaleString()}</b> of ${allSummary.count.toLocaleString()} trades loaded`
+          : `<b>${loadedSummary.count.toLocaleString()}</b> trades loaded · totals update as pages arrive`;
+        html += `<div class="stream-banner"><span class="pulse"></span><span>Streaming matched trades… ${totalsNote}</span></div>`;
+      }
+
+      if (scopeLabel) {
+        html += `<div class="scope-banner">Showing <b>${scopeLabel}</b> · ${displaySummary.count.toLocaleString()} trades · ${fmtUsd(displaySummary.builderFees)} fees · ${fmtUsd(displaySummary.volumeUsdc)} USDC · All-time: ${fmtUsd(allSummary.builderFees)}</div>`;
+      }
 
       html += `<div class="fees-hero">`;
-      html += `<div class="fees-hero-title">${heroTitle}</div>`;
-      html += `<div class="fees-hero-item"><div class="fees-hero-label">Taker fee rate</div><div class="fees-hero-value">${formatBpsRate(takerBps)}</div><div class="fees-hero-sub">${fees.enabled ? 'Active · charged on taker fills' : 'Disabled on Polymarket'}</div></div>`;
-      html += `<div class="fees-hero-item"><div class="fees-hero-label">Maker fee rate</div><div class="fees-hero-value">${formatBpsRate(makerBps)}</div><div class="fees-hero-sub">${fmtUsd(displaySummary.makerEarnings)} earned from ${displaySummary.makerCount.toLocaleString()} maker fills${scopeLabel ? ` · ${scopeLabel}` : ''}</div></div>`;
-      html += `<div class="fees-hero-item fees-hero-total"><div class="fees-hero-label">${scopeLabel ? 'Fees earned' : 'Total fees earned'}</div><div class="fees-hero-value">${fmtUsd(displaySummary.builderFees)}</div><div class="fees-hero-sub">${fmtUsd(displaySummary.takerEarnings)} taker + ${fmtUsd(displaySummary.makerEarnings)} maker · ${displaySummary.postFeeCount.toLocaleString()} fee-charged trades${scopeLabel ? ` · ${scopeLabel}` : ''}</div></div>`;
-      html += `<div class="fees-hero-item"><div class="fees-hero-label">Example per $1,000 vol</div><div class="fees-hero-value">${fmtUsd(exampleTakerFee)}</div><div class="fees-hero-sub">Taker ${fmtUsd(exampleTakerFee)} · Maker ${fmtUsd(exampleMakerFee)}</div></div>`;
+      html += `<div class="fees-hero-main">`;
+      html += `<div class="fees-hero-eyebrow">${scopeLabel ? `Fees earned · ${scopeLabel}` : 'Total fees earned'}</div>`;
+      html += `<div class="fees-hero-big">${fmtUsd(displaySummary.builderFees)}</div>`;
+      html += `<div class="fees-hero-sub">${fmtUsd(displaySummary.takerEarnings)} taker + ${fmtUsd(displaySummary.makerEarnings)} maker · ${displaySummary.postFeeCount.toLocaleString()} fee-charged trades</div>`;
+      html += `<div class="rate-pills">`;
+      html += `<span class="rate-pill">Taker <b>${formatBpsRate(takerBps)}</b></span>`;
+      html += `<span class="rate-pill">Maker <b>${formatBpsRate(makerBps)}</b></span>`;
+      html += `<span class="rate-pill">${fees.enabled ? 'Active' : 'Disabled'} · ${fmtUsd(exampleTakerFee)} / $1k</span>`;
+      html += `</div></div>`;
+      html += `<div class="fees-hero-side"><div class="fees-hero-label">Taker earnings</div><div class="fees-hero-value">${fmtUsd(displaySummary.takerEarnings)}</div><div class="fees-hero-sub">${displaySummary.takerCount.toLocaleString()} fills · ${fmtUsd(displaySummary.takerVolumeUsdc)} vol</div></div>`;
+      html += `<div class="fees-hero-side"><div class="fees-hero-label">Maker earnings</div><div class="fees-hero-value">${fmtUsd(displaySummary.makerEarnings)}</div><div class="fees-hero-sub">${displaySummary.makerCount.toLocaleString()} fills · ${fmtUsd(exampleMakerFee)} / $1k</div></div>`;
       html += `</div>`;
 
+      html += `<div class="metrics-heading">Volume &amp; activity</div>`;
       html += `<div class="stats-grid earnings-grid">`;
-      html += `<div class="stat-card stat-card-earnings"><div class="stat-label">You earn (taker fee)</div><div class="stat-value">${formatBpsRate(takerBps)}</div><div class="stat-sub">${fees.enabled ? 'Active on taker fills' : 'Disabled'} · ${fmtUsd(exampleTakerFee)} per $1,000 USDC taker volume</div></div>`;
-      html += `<div class="stat-card stat-card-earnings"><div class="stat-label">${scopeLabel ? 'Builder fees' : 'Total builder fees earned'}</div><div class="stat-value">${fmtUsd(displaySummary.builderFees)}</div><div class="stat-sub">Effective ${displaySummary.effectiveRateBps.toFixed(2)} bps on ${fmtUsd(displaySummary.volumeUsdc)} matched USDC${scopeLabel ? ` · ${scopeLabel}` : ''}</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Taker earnings</div><div class="stat-value">${fmtUsd(displaySummary.takerEarnings)}</div><div class="stat-sub">${displaySummary.takerCount.toLocaleString()} taker fills · ${fmtUsd(displaySummary.takerVolumeUsdc)} vol</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Maker fee (you earn)</div><div class="stat-value">${formatBpsRate(makerBps)}</div><div class="stat-sub">${fmtUsd(displaySummary.makerEarnings)} from ${displaySummary.makerCount.toLocaleString()} maker fills</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Builder code</div><div class="stat-value mono" style="font-size:0.72rem">${esc(shortHex(code, 8))}</div><div class="stat-sub">${esc(code)}</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Share notional</div><div class="stat-value">${displaySummary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div class="stat-sub">Sum of <code>size</code> (contracts)${scopeLabel ? ` · ${scopeLabel}` : ' · matches Polymarket builder UI ~5–7k'}</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(displaySummary.volumeUsdc)}</div><div class="stat-sub">Sum of <code>sizeUsdc</code> · actual $ flow · ${displaySummary.count} trades</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Share notional</div><div class="stat-value">${displaySummary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div class="stat-sub">Contracts · Polymarket builder volume</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">USDC notional</div><div class="stat-value">${fmtUsd(displaySummary.volumeUsdc)}</div><div class="stat-sub">${displaySummary.count.toLocaleString()} trades · effective ${displaySummary.effectiveRateBps.toFixed(2)} bps</div></div>`;
       if (pmWeek != null || pmMonth != null) {
-        html += `<div class="stat-card"><div class="stat-label">Polymarket official</div><div class="stat-value">${pmWeek != null ? pmWeek.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</div><div class="stat-sub">WEEK leaderboard volume${pmMonth != null ? ` · MONTH ${pmMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''} (share notional)</div></div>`;
+        html += `<div class="stat-card"><div class="stat-label">Polymarket official</div><div class="stat-value">${pmWeek != null ? pmWeek.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</div><div class="stat-sub">WEEK${pmMonth != null ? ` · MONTH ${pmMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}</div></div>`;
+      } else {
+        html += `<div class="stat-card"><div class="stat-label">Fee-charged</div><div class="stat-value">${displaySummary.postFeeCount.toLocaleString()}</div><div class="stat-sub">${fmtUsd(displaySummary.postFeeVolumeUsdc)} USDC</div></div>`;
       }
-      html += `<div class="stat-card"><div class="stat-label">With builder fee</div><div class="stat-value">${displaySummary.postFeeCount}</div><div class="stat-sub">${fmtUsd(displaySummary.postFeeVolumeUsdc)} USDC · ${fmtUsd(displaySummary.builderFees)} fees</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Pre-fee era</div><div class="stat-value">${displaySummary.preFeeCount}</div><div class="stat-sub">${fmtUsd(displaySummary.preFeeVolumeUsdc)} USDC · attributed, $0 builder fee</div></div>`;
-      html += `<div class="stat-card"><div class="stat-label">Protocol fees</div><div class="stat-value">${fmtUsd(displaySummary.protocolFees)}</div><div class="stat-sub">Polymarket <code>feeUsdc</code> (not yours)</div></div>`;
+      html += `<div class="stat-card"><div class="stat-label">Pre-fee era</div><div class="stat-value">${displaySummary.preFeeCount.toLocaleString()}</div><div class="stat-sub">${fmtUsd(displaySummary.preFeeVolumeUsdc)} USDC · $0 builder fee</div></div>`;
       html += `</div>`;
 
-      html += `<p class="hint"><b>Builder taker fee = what you earn.</b> Current rate is <b>${formatBpsRate(takerBps)}</b> on taker USDC notional (example: ${fmtUsd(exampleTakerFee)} per $1,000). <b>Polymarket builder volume is share notional</b> (contracts traded), not USDC. Your ~${displaySummary.shareNotional.toLocaleString(undefined, { maximumFractionDigits: 0 })} shares${scopeLabel ? ` for ${scopeLabel}` : ' ≈ Polymarket leaderboard'}; ~${fmtUsd(displaySummary.volumeUsdc)} is actual dollar flow. <b>Pre-fee</b> trades have <code>builderFee = 0</code>. Protocol <code>feeUsdc</code> is Polymarket's cut, not yours.${scopeLabel ? ` All-time: ${fmtUsd(allSummary.builderFees)} fees · ${allSummary.count.toLocaleString()} trades.` : ''}</p>`;
+      html += `<div class="meta-strip">`;
+      html += `<div class="meta-item"><span class="meta-k">Builder</span><span class="meta-v" title="${esc(code)}">${esc(shortHex(code, 8))}</span></div>`;
+      html += `<div class="meta-item"><span class="meta-k">Protocol fees</span><span class="meta-v">${fmtUsd(displaySummary.protocolFees)}</span></div>`;
+      if (pmWeek != null) {
+        html += `<div class="meta-item"><span class="meta-k">Fee-charged</span><span class="meta-v green">${displaySummary.postFeeCount.toLocaleString()}</span></div>`;
+      }
+      html += `<div class="meta-item"><span class="meta-k">Example</span><span class="meta-v green">${fmtUsd(exampleTakerFee)} taker / $1k</span></div>`;
+      html += `</div>`;
+
+      html += `<details class="help-details"><summary>How builder fees work</summary>`;
+      html += `<p class="hint"><b>Taker fee = what you earn</b> at <b>${formatBpsRate(takerBps)}</b> on taker USDC (${fmtUsd(exampleTakerFee)} per $1,000). Polymarket leaderboard volume is <b>share notional</b> (contracts), not USDC. Pre-fee trades have <code>builderFee = 0</code>. Protocol <code>feeUsdc</code> is Polymarket’s cut, not yours.${scopeLabel ? ` All-time: ${fmtUsd(allSummary.builderFees)} · ${allSummary.count.toLocaleString()} trades.` : ''}</p>`;
+      html += `</details>`;
 
       builderSummaryEl.innerHTML = html;
     }
@@ -1384,8 +1598,9 @@
         : allTrades.filter(t => tradeDayKey(t.createdAt) === builderDayFilter);
       const feeScopeSummary = summarizeTrades(dayScopedTrades);
 
-      let html = `<div class="filter-row">`;
-      html += `<span class="filter-label">Show:</span>`;
+      let html = `<div class="filter-panel">`;
+      html += `<div class="filter-row">`;
+      html += `<span class="filter-label">Show</span>`;
       for (const [mode, label, count] of [
         ['all', 'All', feeScopeSummary.count],
         ['post', 'Fee charged', feeScopeSummary.postFeeCount],
@@ -1397,7 +1612,7 @@
       html += `</div>`;
 
       html += `<div class="filter-row">`;
-      html += `<span class="filter-label">Day TZ:</span>`;
+      html += `<span class="filter-label">TZ</span>`;
       for (const [tz, meta] of Object.entries(BUILDER_DAY_TZ)) {
         const active = builderDayTz === tz ? ' active' : '';
         html += `<button type="button" class="filter-btn${active}" data-builder-day-tz="${tz}">${meta.label}</button>`;
@@ -1409,8 +1624,8 @@
       const yesterdayKey = yesterdayDayKey();
       const countForDay = (key) => dayCounts.find(([d]) => d === key)?.[1] ?? 0;
       html += `<div class="filter-row">`;
-      html += `<span class="filter-label">Day (${builderDayTzLabel()}):</span>`;
-      html += `<button type="button" class="filter-btn${builderDayFilter === 'all' ? ' active' : ''}" data-builder-day="all">All days (${allSummary.count})</button>`;
+      html += `<span class="filter-label">Day</span>`;
+      html += `<button type="button" class="filter-btn${builderDayFilter === 'all' ? ' active' : ''}" data-builder-day="all">All (${allSummary.count})</button>`;
       for (const [key, label] of [[todayKey, 'Today'], [yesterdayKey, 'Yesterday']]) {
         const count = countForDay(key);
         if (!count) continue;
@@ -1428,7 +1643,7 @@
         }
         html += `</select>`;
       }
-      html += `</div>`;
+      html += `</div></div>`;
 
       builderControlsEl.innerHTML = html;
     }
@@ -1462,8 +1677,9 @@
       ).replace('</div>', `<select class="page-size-select" data-builder-page-size>${[50, 100, 250, 500].map(n => `<option value="${n}"${n === builderPageSize ? ' selected' : ''}>${n} / page</option>`).join('')}</select></div>`);
 
       const dayLabel = scopeLabel ? ` · ${scopeLabel}` : '';
-      let html = topPager;
-      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> your fees · Filter total${dayLabel}: <b>${fmtUsd(displaySummary.builderFees)}</b> fees · <b>${fmtUsd(displaySummary.volumeUsdc)}</b> USDC · All time: <b>${fmtUsd(allSummary.builderFees)}</b></p>`;
+      let html = `<div class="section-title"><h2>Matched trades</h2><span>${trades.length.toLocaleString()} in filter</span></div>`;
+      html += topPager;
+      html += `<p class="page-fee-total">This page: <b>${fmtUsd(pageBuilderFees)}</b> · Filter${dayLabel}: <b>${fmtUsd(displaySummary.builderFees)}</b> fees · <b>${fmtUsd(displaySummary.volumeUsdc)}</b> USDC · All-time: <b>${fmtUsd(allSummary.builderFees)}</b></p>`;
 
       const rows = [];
       for (const t of pageTrades) {
@@ -1554,51 +1770,187 @@
       }
     });
 
+    function scheduleBuilderRerender() {
+      clearTimeout(builderRenderTimer);
+      builderRenderTimer = setTimeout(() => {
+        if (builderFeesPayload && builderTradesPayload) {
+          renderBuilderDashboard(builderFeesPayload, builderTradesPayload);
+        } else if (builderFeesPayload) {
+          renderBuilderSummary();
+        }
+        updateBuilderStatusLine();
+      }, 80);
+    }
+
+    function updateBuilderStatusLine() {
+      const n = builderTradesPayload?.trades?.length ?? 0;
+      let status = `${selectedBuilderLabel || 'Builder'} · ${new Date().toLocaleTimeString()}`;
+      if (builderTradesLoading) {
+        status += ` · loading trades… ${n.toLocaleString()} so far`;
+        if (builderTradesPages > 0) status += ` (${builderTradesPages} API pages)`;
+      } else if (n) {
+        status += ` · ${n.toLocaleString()} matched trades`;
+        if (builderTradesPages > 1) status += ` (${builderTradesPages} API pages)`;
+        if (builderTradesHasMore) status += ' · more available on Polymarket';
+      } else {
+        status += ' · no matched trades yet';
+      }
+      builderStatus.textContent = status;
+    }
+
+    function handleBuilderAuthFailure(status) {
+      if (status === 401) {
+        logoutBuilderDashboard();
+        showBuilderLogin('Session expired — enter password again.');
+        return true;
+      }
+      return false;
+    }
+
+    async function loadBuilderFees(seq, builderCode) {
+      const feesRes = await fetch(
+        `/api/builder-fees?code=${encodeURIComponent(builderCode)}`,
+        { headers: builderAuthHeaders() },
+      );
+      const feesJson = await readJson(feesRes);
+      if (seq !== builderLoadSeq) return null;
+      if (!feesRes.ok || !feesJson.success) {
+        if (handleBuilderAuthFailure(feesRes.status)) return null;
+        throw new Error(feesJson.error || `Fees API HTTP ${feesRes.status}`);
+      }
+      builderFeesPayload = feesJson;
+      builderOfficialVolume = null;
+      renderBuilderSummary();
+      builderStatus.textContent = `${selectedBuilderLabel || 'Builder'} · fees loaded · fetching trades…`;
+
+      fetchOfficialBuilderVolume(feesJson.builderCode ?? feesJson.fees?.code).then((vol) => {
+        if (seq !== builderLoadSeq || !vol) return;
+        builderOfficialVolume = vol;
+        renderBuilderSummary();
+      });
+      return feesJson;
+    }
+
+    /** All-time totals aggregated server-side — fills stat cards before the trade stream finishes. */
+    async function loadBuilderServerSummary(seq, builderCode) {
+      try {
+        const res = await fetch(`/api/builder-summary?code=${encodeURIComponent(builderCode)}`, {
+          headers: builderAuthHeaders(),
+        });
+        const json = await readJson(res);
+        if (seq !== builderLoadSeq || !res.ok || !json.success || !json.summary) return;
+        builderServerSummary = json.summary;
+        if (builderTradesLoading) renderBuilderSummary();
+      } catch {
+        /* non-fatal — client-side totals converge once the stream completes */
+      }
+    }
+
+    async function loadBuilderTradesProgressive(seq, builderCode) {
+      builderTradesLoading = true;
+      builderTradesPages = 0;
+      builderTradesHasMore = false;
+      const accumulated = [];
+      let cursor;
+      const MAX_PAGES = 100;
+      let batchIndex = 0;
+
+      builderTradesPayload = { trades: accumulated, pages: 0, hasMore: true };
+      builderTableEl.innerHTML =
+        '<div class="status">Fetching first page of matched trades…</div><div class="skeleton skeleton-table"></div>';
+
+      try {
+        while (builderTradesPages < MAX_PAGES) {
+          if (seq !== builderLoadSeq) return;
+
+          const qs = new URLSearchParams({ code: builderCode, pages: '5' });
+          if (cursor) qs.set('cursor', cursor);
+
+          const tradesRes = await fetch(`/api/builder-trades?${qs}`, {
+            headers: builderAuthHeaders(),
+          });
+          const tradesJson = await readJson(tradesRes);
+          if (seq !== builderLoadSeq) return;
+
+          if (!tradesRes.ok || !tradesJson.success) {
+            if (handleBuilderAuthFailure(tradesRes.status)) return;
+            throw new Error(tradesJson.error || `Trades API HTTP ${tradesRes.status}`);
+          }
+
+          const pageTrades = tradesJson.trades ?? [];
+          accumulated.push(...pageTrades);
+          builderTradesPages += tradesJson.pages ?? 1;
+          cursor = tradesJson.nextCursor || null;
+          builderTradesHasMore = Boolean(cursor) || Boolean(tradesJson.hasMore);
+          builderTradesPayload = {
+            trades: accumulated,
+            pages: builderTradesPages,
+            hasMore: builderTradesHasMore,
+            nextCursor: cursor,
+          };
+          builderTrades = accumulated;
+          batchIndex += 1;
+
+          if (batchIndex === 1) {
+            if (builderFeesPayload) {
+              renderBuilderDashboard(builderFeesPayload, builderTradesPayload);
+            } else {
+              renderBuilderTable();
+            }
+            updateBuilderStatusLine();
+            // Allow refresh again once the first batch is on screen.
+            if (seq === builderLoadSeq) builderRefreshBtn.disabled = false;
+          } else {
+            scheduleBuilderRerender();
+          }
+
+          if (!cursor && !tradesJson.hasMore) break;
+          if (!pageTrades.length && !cursor) break;
+        }
+      } finally {
+        if (seq === builderLoadSeq) {
+          builderTradesLoading = false;
+          updateBuilderStatusLine();
+          if (builderFeesPayload && builderTradesPayload) {
+            renderBuilderDashboard(builderFeesPayload, builderTradesPayload);
+          }
+        }
+      }
+    }
+
     async function loadBuilderDashboard() {
       if (!selectedBuilderCode) {
         await loadBuilderAccounts();
       }
       const seq = ++builderLoadSeq;
-      const codeQuery = `code=${encodeURIComponent(selectedBuilderCode)}`;
+      const builderCode = selectedBuilderCode;
       builderRefreshBtn.disabled = true;
-      builderStatus.textContent = 'Loading fees and trades…';
+      builderStatus.textContent = 'Loading fees…';
       builderTradePage = 0;
+      builderTrades = [];
+      builderTradesPayload = null;
+      builderFeesPayload = null;
+      builderOfficialVolume = null;
+      builderServerSummary = null;
       builderSummaryEl.innerHTML = '<div class="skeleton skeleton-hero"></div><div class="skeleton skeleton-stats"></div>';
       builderControlsEl.innerHTML = '';
       builderTableEl.innerHTML = '<div class="skeleton skeleton-table"></div>';
 
       try {
-        const [feesRes, tradesRes] = await Promise.all([
-          fetch(`/api/builder-fees?${codeQuery}`, { headers: builderAuthHeaders() }),
-          fetch(`/api/builder-trades?all=1&${codeQuery}`, { headers: builderAuthHeaders() }),
-        ]);
-        const [feesJson, tradesJson] = await Promise.all([readJson(feesRes), readJson(tradesRes)]);
-        if (seq !== builderLoadSeq) return; // superseded by a newer load
-
-        if (!feesRes.ok || !feesJson.success || !tradesRes.ok || !tradesJson.success) {
-          if (feesRes.status === 401 || tradesRes.status === 401) {
-            logoutBuilderDashboard();
-            showBuilderLogin('Session expired — enter password again.');
-            return;
-          }
-          throw new Error(feesJson.error || tradesJson.error || `API HTTP ${feesRes.status}/${tradesRes.status}`);
-        }
-
-        // Render immediately; official leaderboard volume is patched in afterwards.
-        builderOfficialVolume = null;
-        renderBuilderDashboard(feesJson, tradesJson);
-
-        const n = tradesJson.trades?.length ?? 0;
-        const pages = tradesJson.pages ?? 1;
-        let status = `${selectedBuilderLabel || 'Builder'} · ${new Date().toLocaleTimeString()} · ${n.toLocaleString()} matched trades`;
-        if (pages > 1) status += ` (${pages} API pages)`;
-        if (tradesJson.hasMore) status += ' · more available — refresh again or raise page limit';
-        builderStatus.textContent = status;
-
-        fetchOfficialBuilderVolume(feesJson.builderCode ?? feesJson.fees?.code).then((vol) => {
-          if (seq !== builderLoadSeq || !vol) return;
-          builderOfficialVolume = vol;
-          renderBuilderSummary();
+        // Independent loads: fees paint ASAP, server-side summary fills all-time totals,
+        // and the trade table streams in via cursor batches.
+        loadBuilderServerSummary(seq, builderCode);
+        const feesP = loadBuilderFees(seq, builderCode);
+        const tradesP = loadBuilderTradesProgressive(seq, builderCode).catch((err) => {
+          if (seq !== builderLoadSeq) return;
+          builderTradesLoading = false;
+          builderTableEl.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+          builderStatus.textContent = 'Fees loaded · trades failed';
+        });
+        await feesP;
+        // First trade batch unlocks Refresh inside the progressive loader; await rest in background.
+        tradesP.then(() => {
+          if (seq === builderLoadSeq) builderRefreshBtn.disabled = false;
         });
       } catch (err) {
         if (seq !== builderLoadSeq) return;

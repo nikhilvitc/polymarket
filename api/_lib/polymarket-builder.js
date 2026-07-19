@@ -120,9 +120,9 @@ async function fetchBuilderTrades({ code, market, cursor, limit = 300 } = {}) {
   };
 }
 
-async function fetchAllBuilderTrades({ code, market, maxPages = 100 } = {}) {
+async function fetchAllBuilderTrades({ code, market, maxPages = 100, startCursor } = {}) {
   const all = [];
-  let cursor;
+  let cursor = startCursor;
   let pages = 0;
 
   while (pages < maxPages) {
@@ -136,6 +136,63 @@ async function fetchAllBuilderTrades({ code, market, maxPages = 100 } = {}) {
   }
 
   return { trades: all, pages, hasMore: true, nextCursor: cursor };
+}
+
+/** Server-side aggregation — mirrors the dashboard's summarizeTrades. */
+function summarizeBuilderTrades(trades) {
+  const s = {
+    volumeUsdc: 0,
+    shareNotional: 0,
+    builderFees: 0,
+    protocolFees: 0,
+    takerEarnings: 0,
+    makerEarnings: 0,
+    takerVolumeUsdc: 0,
+    makerVolumeUsdc: 0,
+    takerCount: 0,
+    makerCount: 0,
+    preFeeCount: 0,
+    postFeeCount: 0,
+    preFeeVolumeUsdc: 0,
+    postFeeVolumeUsdc: 0,
+    bySide: { BUY: 0, SELL: 0 },
+    count: trades.length,
+    firstTradeAt: null,
+    lastTradeAt: null,
+  };
+  for (const t of trades) {
+    const usdc = Number(t.sizeUsdc || 0);
+    const bf = Number(t.builderFee || 0);
+    s.volumeUsdc += usdc;
+    s.shareNotional += Number(t.size || 0);
+    s.builderFees += bf;
+    s.protocolFees += Number(t.feeUsdc || 0);
+    if (s.bySide[t.side] != null) s.bySide[t.side] += 1;
+    const isMaker = String(t.tradeType || '').toUpperCase() === 'MAKER';
+    if (isMaker) {
+      s.makerEarnings += bf;
+      s.makerVolumeUsdc += usdc;
+      s.makerCount += 1;
+    } else {
+      s.takerEarnings += bf;
+      s.takerVolumeUsdc += usdc;
+      s.takerCount += 1;
+    }
+    if (bf > 0) {
+      s.postFeeCount += 1;
+      s.postFeeVolumeUsdc += usdc;
+    } else {
+      s.preFeeCount += 1;
+      s.preFeeVolumeUsdc += usdc;
+    }
+    if (t.createdAt) {
+      if (!s.firstTradeAt || t.createdAt < s.firstTradeAt) s.firstTradeAt = t.createdAt;
+      if (!s.lastTradeAt || t.createdAt > s.lastTradeAt) s.lastTradeAt = t.createdAt;
+    }
+  }
+  s.effectiveRateBps =
+    s.volumeUsdc > 0 ? Math.round((s.builderFees / s.volumeUsdc) * 10_000 * 100) / 100 : 0;
+  return s;
 }
 
 async function fetchBuilderFees(code) {
@@ -157,4 +214,5 @@ module.exports = {
   fetchBuilderTrades,
   fetchAllBuilderTrades,
   fetchBuilderFees,
+  summarizeBuilderTrades,
 };

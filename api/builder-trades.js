@@ -19,9 +19,23 @@ module.exports = async function handler(req, res) {
     const code = typeof req.query.code === 'string' ? req.query.code : undefined;
     const builderCode = resolveBuilderCode(code);
 
-    const result = all
-      ? await fetchAllBuilderTrades({ code: builderCode, market, maxPages: 100 })
-      : await fetchBuilderTrades({ code: builderCode, market, cursor });
+    // pages=N fetches up to N CLOB pages in one serverless call (default 1).
+    const pagesRaw = Number.parseInt(String(req.query.pages ?? '1'), 10);
+    const pages = Number.isFinite(pagesRaw) ? Math.min(Math.max(pagesRaw, 1), 20) : 1;
+
+    let result;
+    if (all) {
+      result = await fetchAllBuilderTrades({ code: builderCode, market, maxPages: 100 });
+    } else if (pages > 1) {
+      result = await fetchAllBuilderTrades({
+        code: builderCode,
+        market,
+        maxPages: pages,
+        startCursor: cursor,
+      });
+    } else {
+      result = await fetchBuilderTrades({ code: builderCode, market, cursor });
+    }
 
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({ success: true, builderCode, ...result });
